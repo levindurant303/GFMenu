@@ -1,0 +1,6 @@
+# GFMenu 主配置文件
+# 菜单文件夹路径，一般无需修改
+menus-directory: "menus"
+Settings:
+  center: true
+debug: false
