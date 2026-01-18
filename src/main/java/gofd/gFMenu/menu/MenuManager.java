@@ -2,12 +2,10 @@ package gofd.gFMenu.menu;
 
 import gofd.gFMenu.GFMenu;
 import gofd.gFMenu.menu.actions.ActionEngine;
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.configuration.ConfigurationSection;
+import gofd.gFMenu.menu.format.MenuFormat;
+import gofd.gFMenu.menu.parser.DeluxeMenuParser;
+import gofd.gFMenu.menu.parser.MenuParser;
+import gofd.gFMenu.menu.parser.TrMenuParser;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
@@ -22,6 +20,14 @@ public class MenuManager {
     private final File menusFolder;
     private final ActionEngine actionEngine;
 
+    // 解析器集合
+    private final Map<MenuFormat, MenuParser> parsers;
+
+    // 全局配置
+    private boolean globalCenterEnabled = true;
+    private boolean preserveSpaces = true;
+    private boolean enableReports = false;
+
     public MenuManager(GFMenu plugin) {
         this.plugin = plugin;
         this.loadedMenus = new HashMap<>();
@@ -29,197 +35,222 @@ public class MenuManager {
         this.commandRegistry = new CommandRegistry(plugin, this);
         this.actionEngine = new ActionEngine(plugin, this);
 
+        // 初始化解析器
+        this.parsers = new HashMap<>();
+        this.parsers.put(MenuFormat.TRMENU, new TrMenuParser());
+        this.parsers.put(MenuFormat.DELUXE, new DeluxeMenuParser());
+
+        loadGlobalConfig();
+
         if (!menusFolder.exists()) {
             menusFolder.mkdirs();
         }
     }
 
-    public void loadAllMenus() {
-        commandRegistry.unregisterAllCommands();
-        loadedMenus.clear();
-
-        File[] menuFiles = menusFolder.listFiles((dir, name) ->
-                name.toLowerCase().endsWith(".yml")
-        );
-
-        if (menuFiles == null) return;
-
-        for (File file : menuFiles) {
-            loadMenu(file);
-        }
-
-        plugin.getLogger().info("§a已加载 " + loadedMenus.size() + " 个菜单");
-        plugin.getLogger().info("§a已注册 " + commandRegistry.getRegisteredCommandCount() + " 个命令");
+    /**
+     * 获取动作引擎
+     */
+    public ActionEngine getActionEngine() {
+        return this.actionEngine;
     }
 
-    private void loadMenu(File file) {
+    /**
+     * 获取命令注册器
+     */
+    public CommandRegistry getCommandRegistry() {
+        return this.commandRegistry;
+    }
+
+    /**
+     * 获取菜单中的特定槽位物品
+     */
+    public LayoutMenuItem getMenuItem(LayoutMenuData menu, int slot) {
+        if (menu == null) return null;
+
+        // 遍历菜单中的所有物品
+        for (LayoutMenuItem item : menu.getItems().values()) {
+            if (item.getSlot() == slot) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 通过菜单名称和槽位获取物品
+     */
+    public LayoutMenuItem getMenuItem(String menuName, int slot) {
+        LayoutMenuData menu = getMenu(menuName);
+        if (menu == null) return null;
+        return getMenuItem(menu, slot);
+    }
+
+    /**
+     * 获取已加载的菜单数量
+     */
+    public int getLoadedMenuCount() {
+        return this.loadedMenus.size();
+    }
+
+    /**
+     * 重新加载所有菜单
+     */
+    public void reloadMenus() {
+        this.commandRegistry.unregisterAllCommands();
+        this.loadedMenus.clear();
+        loadAllMenus();
+    }
+
+    /**
+     * 重新加载全局配置
+     */
+    public void reloadGlobalConfig() {
+        loadGlobalConfig();
+        this.plugin.getLogger().info("全局配置已重载");
+    }
+
+    /**
+     * 卸载所有菜单
+     */
+    public void unloadAllMenus() {
+        this.commandRegistry.unregisterAllCommands();
+        this.loadedMenus.clear();
+    }
+
+    /**
+     * 获取全局配置状态
+     */
+    public String getGlobalConfigStatus() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("§6=== 全局配置状态 ===\n");
+        sb.append("§7默认居中: §").append(this.globalCenterEnabled ? "a启用" : "c禁用").append("\n");
+        sb.append("§7保留空格: §").append(this.preserveSpaces ? "a是" : "c否").append("\n");
+        sb.append("§7布局报告: §").append(this.enableReports ? "a启用" : "c禁用").append("\n");
+
+        sb.append("\n§7已加载菜单: §f").append(getLoadedMenuCount()).append(" 个\n");
+
+        return sb.toString().replace("§", "");
+    }
+
+    /**
+     * 设置报告开关
+     */
+    public void setReportsEnabled(boolean enabled) {
+        this.enableReports = enabled;
+    }
+
+    /**
+     * 检查报告是否启用
+     */
+    public boolean isReportsEnabled() {
+        return this.enableReports;
+    }
+
+    /**
+     * 检测菜单格式
+     */
+    private MenuFormat detectMenuFormat(YamlConfiguration config) {
+        // 检测TrMenu格式
+        if (config.contains("layout") || config.contains("Layout")) {
+            return MenuFormat.TRMENU;
+        }
+
+        // 检测DeluxeMenus格式
+        if (config.contains("menu_title") || config.contains("open_command")) {
+            return MenuFormat.DELUXE;
+        }
+
+        return MenuFormat.UNKNOWN;
+    }
+
+    /**
+     * 加载所有菜单
+     */
+    public void loadAllMenus() {
+        this.commandRegistry.unregisterAllCommands();
+        this.loadedMenus.clear();
+
+        this.plugin.getLogger().info("开始加载菜单...");
+
+        if (!this.menusFolder.exists()) {
+            this.plugin.getLogger().warning("菜单文件夹不存在，已创建");
+            this.menusFolder.mkdirs();
+        }
+
+        File[] menuFiles = this.menusFolder.listFiles();
+
+        if (menuFiles == null || menuFiles.length == 0) {
+            this.plugin.getLogger().warning("没有找到菜单文件");
+            return;
+        }
+
+        int loadedCount = 0;
+        for (File file : menuFiles) {
+            if (file.isFile() && (file.getName().toLowerCase().endsWith(".yml") ||
+                    file.getName().toLowerCase().endsWith(".yaml"))) {
+                if (loadMenu(file)) {
+                    loadedCount++;
+                }
+            }
+        }
+
+        this.plugin.getLogger().info("已加载 " + loadedCount + " 个菜单");
+    }
+
+    /**
+     * 加载单个菜单文件
+     */
+    private boolean loadMenu(File file) {
+        String fileName = file.getName();
+        String menuName = fileName.replace(".yml", "").replace(".yaml", "");
+
         try {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            String menuName = file.getName().replace(".yml", "");
 
-            LayoutMenuData menuData = new LayoutMenuData(menuName);
-
-            // 1. 解析基础信息
-            menuData.setTitle(config.getString("Title", "&f菜单"));
-
-            // 2. 解析布局设置
-            boolean centerEnabled = false;
-            Map<Integer, Integer> rowOffsets = new HashMap<>();
-
-            if (config.contains("Settings")) {
-                ConfigurationSection settings = config.getConfigurationSection("Settings");
-                if (settings != null) {
-                    centerEnabled = settings.getBoolean("center", false);
-
-                    // 解析行偏移
-                    if (settings.contains("rowOffsets")) {
-                        ConfigurationSection offsets = settings.getConfigurationSection("rowOffsets");
-                        if (offsets != null) {
-                            for (String key : offsets.getKeys(false)) {
-                                try {
-                                    int row = Integer.parseInt(key);
-                                    int offset = offsets.getInt(key);
-                                    rowOffsets.put(row, offset);
-                                } catch (NumberFormatException e) {
-                                    plugin.getLogger().warning("无效的行偏移键: " + key);
-                                }
-                            }
-                        }
-                    }
-                }
+            if (config.getKeys(false).isEmpty()) {
+                return false;
             }
 
-            menuData.setCenterEnabled(centerEnabled);
-            menuData.setRowOffsets(rowOffsets);
+            // 检测并选择解析器
+            MenuFormat format = detectMenuFormat(config);
+            MenuParser parser = parsers.get(format);
 
-            // 3. 解析布局定义
-            List<String> layoutRows = config.getStringList("layout");
-            menuData.setRawLayout(layoutRows);
-
-            if (!layoutRows.isEmpty()) {
-                // 使用智能布局解析器
-                Map<Character, Integer> layoutSlots = SmartLayoutParser.parseLayout(
-                        layoutRows, centerEnabled, rowOffsets
-                );
-                menuData.setLayoutSlots(layoutSlots);
-
-                // 生成并显示布局预览
-                String preview = SmartLayoutParser.visualizeLayout(layoutRows, centerEnabled);
-                plugin.getLogger().info("菜单 '" + menuName + "' 布局预览:\n" + preview);
+            if (parser == null) {
+                parser = parsers.get(MenuFormat.TRMENU);
             }
 
-            // 4. 解析命令绑定
-            if (config.contains("Bindings.Commands")) {
-                List<String> commands = config.getStringList("Bindings.Commands");
-                menuData.setCommands(commands);
+            // 解析菜单
+            LayoutMenuData menuData = parser.parse(menuName, config);
 
-                commandRegistry.registerMenuCommands(menuData);
+            // 应用全局配置
+            if (format == MenuFormat.TRMENU) {
+                menuData.setCenterEnabled(this.globalCenterEnabled);
             }
 
-            // 5. 解析权限
-            if (config.contains("permission")) {
-                menuData.setPermission(config.getString("permission"));
+            // 注册命令
+            if (menuData.getCommands() != null && !menuData.getCommands().isEmpty()) {
+                this.commandRegistry.registerMenuCommands(menuData);
             }
 
-            // 6. 解析别名
-            if (config.contains("aliases")) {
-                List<String> aliases = config.getStringList("aliases");
-                menuData.setAliases(aliases);
-            }
+            // 添加到已加载菜单
+            this.loadedMenus.put(menuName.toLowerCase(), menuData);
+            this.plugin.getLogger().info("✓ 加载菜单: " + menuName + " (" +
+                    menuData.getItems().size() + " 个物品)");
 
-            // 7. 解析事件
-            if (config.contains("Events")) {
-                ConfigurationSection events = config.getConfigurationSection("Events");
-                if (events != null) {
-                    if (events.contains("Open")) {
-                        menuData.setOpenEvents(events.getStringList("Open"));
-                    }
-                    if (events.contains("Close")) {
-                        menuData.setCloseEvents(events.getStringList("Close"));
-                    }
-                }
-            }
-
-            // 8. 解析图标
-            ConfigurationSection iconsSection = config.getConfigurationSection("Icons");
-            if (iconsSection != null) {
-                for (String iconKey : iconsSection.getKeys(false)) {
-                    if (iconKey.length() == 1) {
-                        char iconChar = iconKey.charAt(0);
-                        Integer slot = menuData.getLayoutSlots().get(iconChar);
-
-                        if (slot != null) {
-                            ConfigurationSection iconConfig = iconsSection.getConfigurationSection(iconKey);
-                            LayoutMenuItem item = parseMenuItem(iconConfig, slot, iconChar);
-                            menuData.addItem(iconChar, item);
-
-                            plugin.getLogger().info(String.format(
-                                    "  图标 '%c' → 槽位 %d (行%d,列%d)",
-                                    iconChar, slot, slot/9, slot%9));
-                        } else {
-                            plugin.getLogger().warning("菜单 " + menuName +
-                                    ": 图标 '" + iconChar + "' 没有对应的布局槽位");
-                        }
-                    }
-                }
-            }
-
-            loadedMenus.put(menuName.toLowerCase(), menuData);
-            plugin.getLogger().info("§a成功加载菜单: " + menuName +
-                    (centerEnabled ? " §e(居中模式)" : " §7(左对齐模式)"));
+            return true;
 
         } catch (Exception e) {
-            plugin.getLogger().warning("加载菜单文件失败: " + file.getName());
-            e.printStackTrace();
+            this.plugin.getLogger().severe("加载菜单失败: " + fileName + " - " + e.getMessage());
+            return false;
         }
     }
 
-    private LayoutMenuItem parseMenuItem(ConfigurationSection config, int slot, char iconChar) {
-        LayoutMenuItem item = new LayoutMenuItem();
-        item.setSlot(slot);
-        item.setIconChar(iconChar);
-
-        if (config.contains("display")) {
-            ConfigurationSection display = config.getConfigurationSection("display");
-            item.setMaterial(display.getString("material", "STONE"));
-            item.setName(display.getString("name", "&f物品"));
-            item.setLore(display.getStringList("lore"));
-            item.setAmount(display.getInt("amount", 1));
-        }
-
-        if (config.contains("actions")) {
-            Object actionsObj = config.get("actions");
-
-            if (actionsObj instanceof List) {
-                List<String> actionList = config.getStringList("actions");
-                item.setActions("all", actionList);
-            } else if (actionsObj instanceof ConfigurationSection) {
-                ConfigurationSection actionsSec = (ConfigurationSection) actionsObj;
-
-                if (actionsSec.contains("all")) {
-                    Object allObj = actionsSec.get("all");
-                    if (allObj instanceof String) {
-                        item.setActions("all", Collections.singletonList((String) allObj));
-                    } else if (allObj instanceof List) {
-                        item.setActions("all", actionsSec.getStringList("all"));
-                    }
-                }
-
-                if (actionsSec.contains("left")) {
-                    item.setActions("left", actionsSec.getStringList("left"));
-                }
-
-                if (actionsSec.contains("right")) {
-                    item.setActions("right", actionsSec.getStringList("right"));
-                }
-            }
-        }
-
-        return item;
-    }
-
+    /**
+     * 打开菜单给玩家
+     */
     public void openMenu(Player player, String menuName) {
-        LayoutMenuData menu = loadedMenus.get(menuName.toLowerCase());
+        LayoutMenuData menu = this.loadedMenus.get(menuName.toLowerCase());
         if (menu != null) {
             menu.open(player);
         } else {
@@ -227,37 +258,42 @@ public class MenuManager {
         }
     }
 
+    /**
+     * 获取菜单
+     */
     public LayoutMenuData getMenu(String menuName) {
-        return loadedMenus.get(menuName.toLowerCase());
+        return this.loadedMenus.get(menuName.toLowerCase());
     }
 
-    public Map<String, LayoutMenuData> getLoadedMenus() {
+    /**
+     * 获取所有已加载的菜单
+     */
+    public Map<String, LayoutMenuItem> getLoadedMenus() {
+        Map<String, LayoutMenuItem> allItems = new HashMap<>();
+        for (LayoutMenuData menu : loadedMenus.values()) {
+            for (LayoutMenuItem item : menu.getItems().values()) {
+                allItems.put(menu.getName() + "_" + item.getSlot(), item);
+            }
+        }
+        return Collections.unmodifiableMap(allItems);
+    }
+
+    /**
+     * 获取所有菜单数据
+     */
+    public Map<String, LayoutMenuData> getAllMenuData() {
         return Collections.unmodifiableMap(loadedMenus);
     }
 
-    public LayoutMenuItem getMenuItem(LayoutMenuData menu, int slot) {
-        if (menu == null) return null;
+    /**
+     * 加载全局配置
+     */
+    private void loadGlobalConfig() {
+        this.plugin.saveDefaultConfig();
+        this.plugin.reloadConfig();
 
-        for (LayoutMenuItem item : menu.getItems().values()) {
-            if (item.getSlot() == slot) {
-                return item;
-            }
-        }
-        return null;
-    }
-
-    public ActionEngine getActionEngine() {
-        return actionEngine;
-    }
-
-    public void reloadMenus() {
-        commandRegistry.unregisterAllCommands();
-        loadedMenus.clear();
-        loadAllMenus();
-    }
-
-    public void unloadAllMenus() {
-        commandRegistry.unregisterAllCommands();
-        loadedMenus.clear();
+        this.globalCenterEnabled = this.plugin.getConfig().getBoolean("layout.default-center", true);
+        this.preserveSpaces = this.plugin.getConfig().getBoolean("layout.preserve-spaces", true);
+        this.enableReports = this.plugin.getConfig().getBoolean("layout.enable-reports", false);
     }
 }

@@ -1,204 +1,133 @@
-package gofd.gFMenu.menu;
+/*     */ package gofd.gFMenu.menu;
+/*     */ 
+/*     */ import java.util.ArrayList;
+/*     */ import java.util.HashMap;
+/*     */ import java.util.List;
+/*     */ import java.util.Map;
+/*     */ import org.bukkit.Bukkit;
+/*     */ import org.bukkit.entity.Player;
+/*     */ import org.bukkit.inventory.Inventory;
+/*     */ import org.bukkit.inventory.ItemStack;
+/*     */ 
+/*     */ public class LayoutMenuData
+/*     */ {
+/*     */   private final String name;
+/*     */   private String title;
+/*     */   private Map<Character, Integer> layoutSlots;
+/*     */   private List<String> commands;
+/*     */   private String permission;
+/*     */   private List<String> openEvents;
+/*     */   private List<String> closeEvents;
+/*     */   private final Map<Character, LayoutMenuItem> items;
+/*     */   private List<String> rawLayout;
+/*     */   private boolean centerEnabled = false;
+/*  24 */   private int menuSize = 54;
+/*     */   
+/*     */   public LayoutMenuData(String name) {
+/*  27 */     this.name = name;
+/*  28 */     this.layoutSlots = new HashMap<>();
+/*  29 */     this.commands = new ArrayList<>();
+/*  30 */     this.openEvents = new ArrayList<>();
+/*  31 */     this.closeEvents = new ArrayList<>();
+/*  32 */     this.items = new HashMap<>();
+/*  33 */     this.rawLayout = new ArrayList<>();
+/*  34 */     this.title = "菜单";
+/*  35 */     this.permission = null;
+/*     */   }
+/*     */   public void open(Player player) {
+/*     */     int size;
+/*  39 */     if (this.permission != null && !player.hasPermission(this.permission)) {
+/*  40 */       player.sendMessage("§c你没有权限打开这个菜单！");
+/*     */ 
+/*     */       
+/*     */       return;
+/*     */     } 
+/*     */     
+/*  46 */     if (this.rawLayout.isEmpty()) {
+/*  47 */       size = this.menuSize;
+/*     */     } else {
+/*  49 */       size = Math.min(this.rawLayout.size() * 9, 54);
+/*     */     } 
+/*     */     
+/*  52 */     Inventory inventory = Bukkit.createInventory(null, size, this.title);
+/*     */ 
+/*     */     
+/*  55 */     for (LayoutMenuItem item : this.items.values()) {
+/*  56 */       ItemStack stack = item.toItemStack();
+/*  57 */       if (stack != null) {
+/*  58 */         int slot = item.getSlot();
+/*  59 */         if (slot >= 0 && slot < size) {
+/*  60 */           inventory.setItem(slot, stack);
+/*     */         }
+/*     */       } 
+/*     */     } 
+/*     */ 
+/*     */     
+/*  66 */     executeEvents(player, this.openEvents);
+/*     */ 
+/*     */     
+/*  69 */     player.openInventory(inventory);
+/*     */     
+/*  71 */     logMenuOpen();
+/*     */   }
+/*     */   
+/*     */   private void executeEvents(Player player, List<String> events) {
+/*  75 */     if (events == null || events.isEmpty())
+/*     */       return; 
+/*  77 */     for (String event : events) {
+/*  78 */       if (event.startsWith("sound:")) {
+/*  79 */         String str = event.substring(6).trim(); continue;
+/*     */       } 
+/*  81 */       if (event.startsWith("tell:")) {
+/*  82 */         player.sendMessage(event.substring(5).trim().replace("&", "§"));
+/*     */       }
+/*     */     } 
+/*     */   }
+/*     */   
+/*     */   private void logMenuOpen() {
+/*  88 */     StringBuilder sb = new StringBuilder();
+/*  89 */     sb.append("\n§7========== 菜单信息 ==========\n");
+/*  90 */     sb.append("§7菜单名称: §f").append(this.name).append("\n");
+/*  91 */     sb.append("§7标题: §f").append(this.title).append("\n");
+/*  92 */     sb.append("§7图标数量: §f").append(this.items.size()).append("\n");
+/*     */     
+/*  94 */     if (!this.rawLayout.isEmpty()) {
+/*  95 */       sb.append("§7布局类型: §fTrMenu格式\n");
+/*  96 */       sb.append("§7居中模式: §").append(this.centerEnabled ? "a启用" : "c禁用").append("\n");
+/*     */     } else {
+/*  98 */       sb.append("§7布局类型: §fDeluxeMenus格式\n");
+/*  99 */       sb.append("§7菜单大小: §f").append(this.menuSize).append(" 槽位\n");
+/*     */     } 
+/*     */     
+/* 102 */     sb.append("§7===================================");
+/* 103 */     Bukkit.getLogger().info(sb.toString().replace("§", ""));
+/*     */   }
+/*     */   
+/*     */   public void addItem(char iconChar, LayoutMenuItem item) {
+/* 107 */     this.items.put(Character.valueOf(iconChar), item);
+/*     */   }
+/*     */   
+/*     */   public String getName() {
+/* 111 */     return this.name;
+/* 112 */   } public String getTitle() { return this.title; }
+/* 113 */   public void setTitle(String title) { this.title = title; }
+/* 114 */   public Map<Character, Integer> getLayoutSlots() { return this.layoutSlots; }
+/* 115 */   public void setLayoutSlots(Map<Character, Integer> layoutSlots) { this.layoutSlots = layoutSlots; }
+/* 116 */   public List<String> getCommands() { return this.commands; }
+/* 117 */   public void setCommands(List<String> commands) { this.commands = commands; }
+/* 118 */   public String getPermission() { return this.permission; }
+/* 119 */   public void setPermission(String permission) { this.permission = permission; }
+/* 120 */   public List<String> getOpenEvents() { return this.openEvents; }
+/* 121 */   public void setOpenEvents(List<String> openEvents) { this.openEvents = openEvents; }
+/* 122 */   public List<String> getCloseEvents() { return this.closeEvents; }
+/* 123 */   public void setCloseEvents(List<String> closeEvents) { this.closeEvents = closeEvents; }
+/* 124 */   public Map<Character, LayoutMenuItem> getItems() { return this.items; }
+/* 125 */   public List<String> getRawLayout() { return this.rawLayout; }
+/* 126 */   public void setRawLayout(List<String> rawLayout) { this.rawLayout = rawLayout; }
+/* 127 */   public boolean isCenterEnabled() { return this.centerEnabled; }
+/* 128 */   public void setCenterEnabled(boolean centerEnabled) { this.centerEnabled = centerEnabled; }
+/* 129 */   public int getMenuSize() { return this.menuSize; } public void setMenuSize(int menuSize) {
+/* 130 */     this.menuSize = menuSize;
+/*     */   }
+/*     */ }
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-
-import java.util.*;
-
-public class LayoutMenuData {
-
-    private final String name;
-    private String title;
-    private Map<Character, Integer> layoutSlots;
-    private List<String> commands;
-    private List<String> aliases;
-    private String permission;
-    private List<String> openEvents;
-    private List<String> closeEvents;
-    private final Map<Character, LayoutMenuItem> items;
-    private List<String> rawLayout;
-
-    // 新增：布局配置
-    private boolean centerEnabled = false;
-    private Map<Integer, Integer> rowOffsets = new HashMap<>();
-
-    public LayoutMenuData(String name) {
-        this.name = name;
-        this.layoutSlots = new HashMap<>();
-        this.commands = new ArrayList<>();
-        this.aliases = new ArrayList<>();
-        this.openEvents = new ArrayList<>();
-        this.closeEvents = new ArrayList<>();
-        this.items = new HashMap<>();
-        this.rawLayout = new ArrayList<>();
-        this.title = "菜单";
-        this.permission = null;
-    }
-
-    public void open(Player player) {
-        // 权限检查
-        if (permission != null && !player.hasPermission(permission)) {
-            player.sendMessage("§c你没有权限打开这个菜单！");
-            return;
-        }
-
-        // 计算库存大小
-        int size = calculateInventorySize();
-
-        // 创建库存
-        Inventory inventory = Bukkit.createInventory(null, size,
-                title.replace("&", "§"));
-
-        // 设置物品
-        for (LayoutMenuItem item : items.values()) {
-            ItemStack itemStack = item.toItemStack();
-            if (itemStack != null) {
-                int slot = item.getSlot();
-                if (slot >= 0 && slot < size) {
-                    inventory.setItem(slot, itemStack);
-
-                    // 调试信息
-                    if (Bukkit.getLogger() != null) {
-                        Bukkit.getLogger().info(String.format(
-                                "菜单 '%s': 图标 '%c' 放置在槽位 %d (行%d,列%d)",
-                                name, item.getIconChar(), slot, slot/9, slot%9));
-                    }
-                }
-            }
-        }
-
-        // 执行打开事件
-        executeEvents(player, openEvents);
-
-        player.openInventory(inventory);
-
-        // 记录打开日志
-        logMenuOpen();
-    }
-
-    private int calculateInventorySize() {
-        if (rawLayout == null || rawLayout.isEmpty()) {
-            return 9 * 3; // 默认3行
-        }
-
-        int rows = rawLayout.size();
-        if (rows > 6) rows = 6;
-
-        return rows * 9;
-    }
-
-    private void executeEvents(Player player, List<String> events) {
-        if (events == null) return;
-
-        // 这里可以扩展事件执行器
-        for (String event : events) {
-            if (event.startsWith("sound:")) {
-                // 音效处理（可以后续实现）
-            } else if (event.startsWith("message:")) {
-                String message = event.substring(8).trim();
-                player.sendMessage(message.replace("&", "§"));
-            }
-        }
-    }
-
-    private void logMenuOpen() {
-        if (Bukkit.getLogger() != null) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("\n§7========== 菜单布局信息 ==========\n");
-            sb.append("§7菜单名称: §f").append(name).append("\n");
-            sb.append("§7标题: §f").append(title).append("\n");
-            sb.append("§7居中模式: §").append(centerEnabled ? "a启用" : "c禁用").append("\n");
-            sb.append("§7布局行数: §f").append(rawLayout.size()).append("\n");
-            sb.append("§7图标数量: §f").append(items.size()).append("\n");
-
-            // 显示每行的布局
-            if (!rawLayout.isEmpty()) {
-                sb.append("§7布局定义:\n");
-                for (int i = 0; i < rawLayout.size(); i++) {
-                    sb.append(String.format("§7  行%d: §f%s\n", i, rawLayout.get(i)));
-                }
-            }
-
-            // 显示图标位置
-            if (!items.isEmpty()) {
-                sb.append("§7图标位置:\n");
-                List<LayoutMenuItem> sortedItems = new ArrayList<>(items.values());
-                sortedItems.sort(Comparator.comparingInt(LayoutMenuItem::getSlot));
-
-                for (LayoutMenuItem item : sortedItems) {
-                    int slot = item.getSlot();
-                    int row = slot / 9;
-                    int col = slot % 9;
-                    sb.append(String.format("§7  %c → 槽位%d (行%d,列%d)\n",
-                            item.getIconChar(), slot, row, col));
-                }
-            }
-
-            sb.append("§7===================================");
-            Bukkit.getLogger().info(sb.toString().replace("§", ""));
-        }
-    }
-
-    // ================== Getters and Setters ==================
-
-    public String getName() { return name; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public Map<Character, Integer> getLayoutSlots() { return layoutSlots; }
-    public void setLayoutSlots(Map<Character, Integer> layoutSlots) {
-        this.layoutSlots = layoutSlots;
-    }
-
-    public List<String> getCommands() { return commands; }
-    public void setCommands(List<String> commands) {
-        this.commands = commands != null ? commands : new ArrayList<>();
-    }
-
-    public List<String> getAliases() { return aliases; }
-    public void setAliases(List<String> aliases) {
-        this.aliases = aliases != null ? aliases : new ArrayList<>();
-    }
-
-    public String getPermission() { return permission; }
-    public void setPermission(String permission) { this.permission = permission; }
-
-    public List<String> getOpenEvents() { return openEvents; }
-    public void setOpenEvents(List<String> openEvents) {
-        this.openEvents = openEvents != null ? openEvents : new ArrayList<>();
-    }
-
-    public List<String> getCloseEvents() { return closeEvents; }
-    public void setCloseEvents(List<String> closeEvents) {
-        this.closeEvents = closeEvents != null ? closeEvents : new ArrayList<>();
-    }
-
-    public Map<Character, LayoutMenuItem> getItems() { return items; }
-
-    public List<String> getRawLayout() { return rawLayout; }
-    public void setRawLayout(List<String> rawLayout) {
-        this.rawLayout = rawLayout != null ? rawLayout : new ArrayList<>();
-    }
-
-    // 新增：居中配置相关方法
-    public boolean isCenterEnabled() { return centerEnabled; }
-    public void setCenterEnabled(boolean centerEnabled) {
-        this.centerEnabled = centerEnabled;
-    }
-
-    public Map<Integer, Integer> getRowOffsets() { return rowOffsets; }
-    public void setRowOffsets(Map<Integer, Integer> rowOffsets) {
-        this.rowOffsets = rowOffsets != null ? rowOffsets : new HashMap<>();
-    }
-
-    public void setRowOffset(int row, int offset) {
-        rowOffsets.put(row, offset);
-    }
-
-    public void addItem(char key, LayoutMenuItem item) {
-        items.put(key, item);
-    }
-}

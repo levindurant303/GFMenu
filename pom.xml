@@ -7,7 +7,7 @@
 
     <groupId>gofd.gFMenu</groupId>
     <artifactId>GFMenu</artifactId>
-    <version>0.2</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -28,8 +28,21 @@
         </repository>
     </repositories>
 
+    <pluginRepositories>
+        <pluginRepository>
+            <id>aliyunmaven</id>
+            <name>阿里云公共仓库</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
     <dependencies>
-        <!-- PaperMC API (推荐) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>

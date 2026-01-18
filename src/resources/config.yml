@@ -1,0 +1,14 @@
+# GFMenu 全局配置
+layout:
+  default-center: true
+  preserve-spaces: true
+  enable-reports: false
+
+# 格式自动检测
+auto-detect-format: true
+# 语言配置
+language: "zh_CN"
+# 命令配置
+commands:
+  register-aliases: true
+  unregister-on-disable: true

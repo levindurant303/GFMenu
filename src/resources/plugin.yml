@@ -1,0 +1,83 @@
+name: GFMenu
+main: gofd.gFMenu.GFMenu
+version: 1.0.4
+api-version: "1.13"
+author: GOFD
+description: |
+  基于布局的GUI菜单系统
+  支持TrMenu和DeluxeMenus两种格式
+  自动注册命令，兼容性强
+
+commands:
+  gfmenu:
+    description: GFMenu主命令
+    usage: |
+      §6=== GFMenu 命令帮助 ===
+      §7/gfmenu reload §f- 重载插件配置和菜单
+      §7/gfmenu open <菜单名> §f- 打开指定菜单
+      §7/gfmenu list §f- 列出所有已加载菜单
+      §7/gfmenu debug §f- 显示调试信息
+      §7/gfmenu register §f- 重新注册所有菜单命令
+      §7/gfmenu check §f- 检查文件夹和菜单状态
+      §7/gfmenu config <status|reload> §f- 配置管理
+    aliases: [gfm, menuadmin]
+    permission: gfmenu.use
+
+
+# ========== 权限设置 ==========
+permissions:
+  gfmenu.admin:
+    description: GFMenu管理员权限
+    default: op
+    children:
+      gfmenu.*: true
+
+  gfmenu.use:
+    description: 使用GFMenu基本功能
+    default: true
+    children:
+      gfmenu.open: true
+
+  gfmenu.reload:
+    description: 重载插件配置和菜单
+    default: op
+
+  gfmenu.debug:
+    description: 查看调试信息
+    default: op
+
+  gfmenu.open:
+    description: 打开菜单权限（菜单特定权限将自动创建）
+    default: true
+
+  gfmenu.bypass:
+    description: 绕过菜单权限检查
+    default: op
+
+  # 通配符权限，方便管理
+  gfmenu.*:
+    description: 所有GFMenu权限
+    default: op
+    children:
+      gfmenu.admin: true
+      gfmenu.reload: true
+      gfmenu.debug: true
+      gfmenu.bypass: true
+
+# ========== 功能设置 ==========
+prefix: "GFMenu"
+website: "https://github.com/levindurant303/GFMenu"
+authors: [GOFD]
+
+libraries: []
+folia-supported: false
+
+default-command-permission: gfmenu.open
+enable-metrics: true
+update-check: true
+auto-update: false
+
+
+messages:
+  zh_CN: messages_zh_CN.yml
+  en_US: messages_en_US.yml
