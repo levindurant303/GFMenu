@@ -2,222 +2,175 @@ package gofd.gFMenu.menu;
 
 import gofd.gFMenu.GFMenu;
 import org.bukkit.Bukkit;
-import org.bukkit.command.*;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandMap;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
-public class CommandRegistry {
+/** Registers menu open commands and removes only commands owned by this registry. */
+public final class CommandRegistry {
 
     private final GFMenu plugin;
     private final MenuManager menuManager;
-    private final Map<String, String> registeredCommands;
+    private final Map<String, Command> registeredCommands = new LinkedHashMap<>();
 
     public CommandRegistry(GFMenu plugin, MenuManager menuManager) {
         this.plugin = plugin;
         this.menuManager = menuManager;
-        this.registeredCommands = new HashMap<>();
     }
 
-    /**
-     * 为菜单自动注册命令
-     */
-    public void registerMenuCommands(LayoutMenuData menuData) {
-        String menuName = menuData.getName();
-        List<String> commands = menuData.getCommands();
+    public void registerMenuCommands(LayoutMenuData menu) {
+        for (String configuredCommand : menu.getCommands()) {
+            String commandName = normalizeCommand(configuredCommand);
+            if (commandName == null || registeredCommands.containsKey(commandName)) {
+                continue;
+            }
+            registerCommand(commandName, menu);
+        }
+    }
 
-        if (commands == null || commands.isEmpty()) {
+    private void registerCommand(String commandName, LayoutMenuData menu) {
+        CommandMap commandMap = getCommandMap();
+        if (commandMap == null) {
+            plugin.getLogger().warning("Command map is unavailable; cannot register /" + commandName);
+            return;
+        }
+        Command existing = commandMap.getCommand(commandName);
+        if (existing != null) {
+            plugin.getLogger().warning("Skipping menu command /" + commandName + " because it is already registered.");
             return;
         }
 
-        for (String command : commands) {
-            if (command == null || command.trim().isEmpty()) {
-                continue;
-            }
-
-            String cmd = command.trim().toLowerCase();
-
-            // 跳过已注册的命令
-            if (registeredCommands.containsKey(cmd)) {
-                continue;
-            }
-
-            // 注册命令
-            if (registerCommand(cmd, menuName)) {
-                registeredCommands.put(cmd, menuName);
-            }
+        MenuOpenCommand command = new MenuOpenCommand(commandName, plugin, menuManager, menu.getName());
+        command.setDescription("Open menu " + menu.getName());
+        command.setUsage("/" + commandName);
+        if (menu.getPermission() != null && !menu.getPermission().isBlank()) {
+            command.setPermission(menu.getPermission());
+        }
+        if (commandMap.register(plugin.getName().toLowerCase(Locale.ROOT), command)) {
+            registeredCommands.put(commandName, command);
         }
     }
 
-    /**
-     * 动态注册命令（简化版）
-     */
-    private boolean registerCommand(String command, String menuName) {
-        try {
-            // 获取CommandMap
-            CommandMap commandMap = getCommandMap();
-            if (commandMap == null) {
-                return false;
-            }
-
-            // 检查命令是否已存在（通过Bukkit的命令管理器）
-            Command existing = commandMap.getCommand(command);
-            if (existing != null) {
-                // 检查是否是我们自己的命令
-                boolean isOurCommand = false;
-                try {
-                    // 尝试通过反射判断
-                    if (existing instanceof SimpleMenuCommand) {
-                        isOurCommand = true;
-                    }
-                } catch (Exception e) {
-                    // 忽略
-                }
-
-                if (!isOurCommand) {
-                    return false;
-                }
-            }
-
-            // 创建并注册命令
-            SimpleMenuCommand menuCmd = new SimpleMenuCommand(command, menuManager, menuName);
-            menuCmd.setDescription("打开 " + menuName + " 菜单");
-            menuCmd.setUsage("/" + command);
-
-            // 设置权限
-            LayoutMenuData menu = menuManager.getMenu(menuName);
-            if (menu != null && menu.getPermission() != null) {
-                menuCmd.setPermission(menu.getPermission());
-            }
-
-            // 注册命令
-            commandMap.register(plugin.getName().toLowerCase(), menuCmd);
-            return true;
-
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * 获取CommandMap
-     */
-    private CommandMap getCommandMap() {
-        try {
-            // 方法1：通过Bukkit获取
-            CommandMap commandMap = Bukkit.getCommandMap();
-            if (commandMap != null) {
-                return commandMap;
-            }
-
-            // 方法2：通过反射获取
-            Field commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
-            commandMapField.setAccessible(true);
-            return (CommandMap) commandMapField.get(Bukkit.getServer());
-
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 清理已注册的命令
-     */
     public void unregisterAllCommands() {
-        try {
-            CommandMap commandMap = getCommandMap();
-            if (commandMap == null) return;
-
-            // 获取已知命令
-            Map<String, Command> knownCommands;
-            try {
-                Field knownCommandsField = commandMap.getClass().getDeclaredField("knownCommands");
-                knownCommandsField.setAccessible(true);
-                knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
-            } catch (NoSuchFieldException e) {
-                knownCommands = commandMap.getKnownCommands();
+        CommandMap commandMap = getCommandMap();
+        Map<String, Command> knownCommands = getKnownCommands(commandMap);
+        for (Command command : registeredCommands.values()) {
+            if (commandMap != null) {
+                command.unregister(commandMap);
             }
-
-            if (knownCommands == null) return;
-
-            // 收集要移除的命令
-            List<String> toRemove = new ArrayList<>();
-            for (Map.Entry<String, Command> entry : knownCommands.entrySet()) {
-                if (entry.getValue() instanceof SimpleMenuCommand) {
-                    toRemove.add(entry.getKey());
+            if (knownCommands != null) {
+                Iterator<Map.Entry<String, Command>> entries = knownCommands.entrySet().iterator();
+                while (entries.hasNext()) {
+                    if (entries.next().getValue() == command) {
+                        entries.remove();
+                    }
                 }
             }
-
-            // 移除命令
-            for (String cmd : toRemove) {
-                knownCommands.remove(cmd);
-            }
-
-            registeredCommands.clear();
-
-        } catch (Exception e) {
-            // 静默处理
         }
+        registeredCommands.clear();
     }
 
-    /**
-     * 获取已注册的命令数量
-     */
     public int getRegisteredCommandCount() {
         return registeredCommands.size();
     }
 
-    /**
-     * 获取已注册的命令列表（调试用）
-     */
     public String getRegisteredCommandsList() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== 已注册命令列表 ===\n");
-
         if (registeredCommands.isEmpty()) {
-            sb.append("没有已注册的命令\n");
-        } else {
-            for (Map.Entry<String, String> entry : registeredCommands.entrySet()) {
-                sb.append(String.format("§7/%s → §f%s\n", entry.getKey(), entry.getValue()));
-            }
+            return "No dynamically registered menu commands.";
         }
-
-        sb.append("总计: ").append(registeredCommands.size()).append(" 个命令\n");
-        sb.append("======================");
-        return sb.toString();
+        return String.join(", ", registeredCommands.keySet());
     }
 
-    /**
-     * 简化的菜单命令类
-     */
-    public static class SimpleMenuCommand extends Command {
+    private CommandMap getCommandMap() {
+        try {
+            return Bukkit.getCommandMap();
+        } catch (NoSuchMethodError ignored) {
+            try {
+                Field field = findField(Bukkit.getServer().getClass(), "commandMap");
+                if (field == null) {
+                    return null;
+                }
+                field.setAccessible(true);
+                return (CommandMap) field.get(Bukkit.getServer());
+            } catch (ReflectiveOperationException exception) {
+                plugin.getLogger().warning("Unable to access Bukkit command map: " + exception.getMessage());
+                return null;
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Command> getKnownCommands(CommandMap commandMap) {
+        if (commandMap == null) {
+            return null;
+        }
+        try {
+            Field field = findField(commandMap.getClass(), "knownCommands");
+            if (field == null) {
+                return null;
+            }
+            field.setAccessible(true);
+            Object value = field.get(commandMap);
+            return value instanceof Map<?, ?> ? (Map<String, Command>) value : null;
+        } catch (IllegalAccessException exception) {
+            return null;
+        }
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private static String normalizeCommand(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized.matches("[a-z0-9_:-]+") ? normalized : null;
+    }
+
+    private static final class MenuOpenCommand extends Command {
+        private final GFMenu plugin;
         private final MenuManager menuManager;
         private final String menuName;
 
-        public SimpleMenuCommand(String name, MenuManager menuManager, String menuName) {
+        private MenuOpenCommand(String name, GFMenu plugin, MenuManager menuManager, String menuName) {
             super(name);
+            this.plugin = plugin;
             this.menuManager = menuManager;
             this.menuName = menuName;
         }
 
         @Override
         public boolean execute(CommandSender sender, String label, String[] args) {
-            if (!(sender instanceof Player)) {
-                sender.sendMessage("§c只有玩家可以使用此命令。");
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(plugin.getLanguageManager().getMessage("player_only_open"));
                 return true;
             }
-
-            Player player = (Player) sender;
-
-            // 检查权限
             if (getPermission() != null && !player.hasPermission(getPermission())) {
-                player.sendMessage("§c你没有权限使用此命令。");
+                player.sendMessage(plugin.getLanguageManager().getMessage("menu_command_no_permission"));
                 return true;
             }
-
-            // 打开菜单
             menuManager.openMenu(player, menuName);
             return true;
         }

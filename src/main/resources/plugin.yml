@@ -1,21 +1,24 @@
 name: GFMenu
-version: 1.0.0
+version: 1.1.0
 main: gofd.gFMenu.GFMenu
-api-version: 1.21
-load: STARTUP
+api-version: "1.21"
 authors: [GOFD]
-description: 一个简单菜单插件
+description: Menu system with TrMenu and DeluxeMenus compatible formats.
 
 commands:
   gfmenu:
-    description: 打开菜单
-    usage: /<command> [open|reload|list]
+    description: Manage GFMenu menus
+    usage: /gfmenu [open|list|reload|edit]
     aliases: [gfm]
+    permission: gfmenu.use
 
 permissions:
   gfmenu.use:
-    description: 允许使用GFMenu基础功能
+    description: Use GFMenu commands
+    default: true
+  gfmenu.open:
+    description: Open menus through /gfmenu open
     default: true
   gfmenu.admin:
-    description: 允许使用GFMenu管理功能
+    description: Reload and edit menus
     default: op

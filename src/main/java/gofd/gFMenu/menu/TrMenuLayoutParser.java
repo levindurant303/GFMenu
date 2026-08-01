@@ -1,83 +1,59 @@
 package gofd.gFMenu.menu;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * 正确解析TrMenu布局格式
- * 每个字符代表一个槽位，空格是占位符
- */
-public class TrMenuLayoutParser {
+/** Parser for TrMenu's character-based layout. Spaces are real slot placeholders. */
+public final class TrMenuLayoutParser {
 
-    /**
-     * 正确的TrMenu布局解析 - 逐字符解析
-     */
-    public static Map<Character, Integer> parseLayout(List<String> layoutRows) {
-        Map<Character, Integer> slotMap = new HashMap<>();
-
-        if (layoutRows == null || layoutRows.isEmpty()) {
-            return slotMap;
-        }
-
-        int rowIndex = 0;
-        for (String row : layoutRows) {
-            String cleanRow = cleanRowString(row);
-
-            for (int colIndex = 0; colIndex < cleanRow.length(); colIndex++) {
-                char ch = cleanRow.charAt(colIndex);
-
-                // 跳过空格（空格是占位符，不是布局字符）
-                if (ch == ' ') {
-                    continue;
-                }
-
-                // 计算槽位
-                int slot = rowIndex * 9 + colIndex;
-                slotMap.put(ch, slot);
-            }
-
-            rowIndex++;
-        }
-
-        return slotMap;
+    private TrMenuLayoutParser() {
     }
 
-    /**
-     * 清理行字符串
-     */
-    static String cleanRowString(String row) {
+    public static Map<Character, Integer> parseLayout(List<String> layoutRows, boolean centerEnabled) {
+        Map<Character, Integer> slots = new LinkedHashMap<>();
+        if (layoutRows == null) {
+            return slots;
+        }
+
+        int rowCount = Math.min(layoutRows.size(), 6);
+        for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+            String row = cleanRowString(layoutRows.get(rowIndex));
+            if (row.isEmpty()) {
+                continue;
+            }
+
+            int visibleLength = Math.min(row.length(), 9);
+            boolean hasExplicitSpacing = row.length() >= 9 || row.startsWith(" ") || row.endsWith(" ");
+            int startColumn = centerEnabled && !hasExplicitSpacing && visibleLength < 9
+                    ? (9 - visibleLength) / 2
+                    : 0;
+
+            for (int column = 0; column < visibleLength; column++) {
+                char icon = row.charAt(column);
+                if (icon != ' ') {
+                    slots.put(icon, rowIndex * 9 + startColumn + column);
+                }
+            }
+        }
+        return slots;
+    }
+
+    public static String cleanRowString(String row) {
         if (row == null) {
             return "";
         }
-
-        String cleanRow = row.trim();
-
-        // 移除单引号
-        if (cleanRow.startsWith("'") && cleanRow.endsWith("'")) {
-            cleanRow = cleanRow.substring(1, cleanRow.length() - 1);
+        String trimmed = row.trim();
+        if (trimmed.length() >= 2
+                && ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
+                || (trimmed.startsWith("'") && trimmed.endsWith("'")))) {
+            return trimmed.substring(1, trimmed.length() - 1);
         }
-
-        // 移除双引号
-        if (cleanRow.startsWith("\"") && cleanRow.endsWith("\"")) {
-            cleanRow = cleanRow.substring(1, cleanRow.length() - 1);
-        }
-
-        return cleanRow;
+        return row;
     }
 
-    /**
-     * 计算库存大小（基于布局行数）
-     */
     public static int calculateInventorySize(List<String> layoutRows) {
-        if (layoutRows == null || layoutRows.isEmpty()) {
-            return 9 * 3; // 默认3行
-        }
-
-        int rows = layoutRows.size();
-
-        // 确保行数在1-6之间
-        if (rows < 1) rows = 1;
-        if (rows > 6) rows = 6;
-
-        return rows * 9;
+        int rows = layoutRows == null ? 0 : Math.min(layoutRows.size(), 6);
+        return Math.max(9, rows * 9);
     }
 }

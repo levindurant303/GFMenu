@@ -1,108 +1,211 @@
-/*     */ package gofd.gFMenu.menu;
-/*     */ 
-/*     */ import java.util.ArrayList;
-/*     */ import java.util.HashMap;
-/*     */ import java.util.List;
-/*     */ import java.util.Map;
-/*     */ import org.bukkit.Material;
-/*     */ import org.bukkit.enchantments.Enchantment;
-/*     */ import org.bukkit.inventory.ItemFlag;
-/*     */ import org.bukkit.inventory.ItemStack;
-/*     */ import org.bukkit.inventory.meta.ItemMeta;
-/*     */ 
-/*     */ 
-/*     */ 
-/*     */ 
-/*     */ 
-/*     */ 
-/*     */ 
-/*     */ 
-/*     */ public class LayoutMenuItem
-/*     */ {
-/*  22 */   private String material = "STONE";
-/*  23 */   private int amount = 1;
-/*  24 */   private String name = "物品";
-/*  25 */   private List<String> lore = new ArrayList<>();
-/*  26 */   private Map<String, List<String>> actions = new HashMap<>();
-/*  27 */   private int slot = 0;
-/*  28 */   private char iconChar = ' ';
-/*     */   private boolean glowing = false;
-/*  30 */   private String skullOwner = null;
-/*     */ 
-/*     */   
-/*     */   public ItemStack toItemStack() {
-/*  34 */     Material mat = Material.getMaterial(this.material.toUpperCase());
-/*  35 */     if (mat == null) {
-/*  36 */       mat = Material.STONE;
-/*     */     }
-/*     */     
-/*  39 */     ItemStack item = new ItemStack(mat, this.amount);
-/*  40 */     ItemMeta meta = item.getItemMeta();
-/*     */     
-/*  42 */     if (meta != null) {
-/*     */       
-/*  44 */       if (this.name != null && !this.name.isEmpty()) {
-/*  45 */         meta.setDisplayName(this.name.replace("&", "§"));
-/*     */       }
-/*     */ 
-/*     */       
-/*  49 */       if (this.lore != null && !this.lore.isEmpty()) {
-/*  50 */         List<String> coloredLore = new ArrayList<>();
-/*  51 */         for (String line : this.lore) {
-/*  52 */           coloredLore.add(line.replace("&", "§"));
-/*     */         }
-/*  54 */         meta.setLore(coloredLore);
-/*     */       } 
-/*     */ 
-/*     */       
-/*  58 */       if (this.glowing) {
-/*  59 */         meta.addEnchant(Enchantment.LURE, 1, true);
-/*  60 */         meta.addItemFlags(new ItemFlag[] { ItemFlag.HIDE_ENCHANTS });
-/*     */       } 
-/*     */       
-/*  63 */       item.setItemMeta(meta);
-/*     */     } 
-/*     */ 
-/*     */     
-/*  67 */     if (this.skullOwner == null || this.material.equalsIgnoreCase("PLAYER_HEAD"));
-/*     */ 
-/*     */ 
-/*     */     
-/*  71 */     return item;
-/*     */   }
-/*     */   
-/*     */   public List<String> getActions(String type) {
-/*  75 */     if (this.actions.containsKey(type))
-/*  76 */       return this.actions.get(type); 
-/*  77 */     if (this.actions.containsKey("all")) {
-/*  78 */       return this.actions.get("all");
-/*     */     }
-/*  80 */     return new ArrayList<>();
-/*     */   }
-/*     */   
-/*     */   public boolean hasActions(String type) {
-/*  84 */     return (this.actions.containsKey(type) || this.actions.containsKey("all"));
-/*     */   }
-/*     */   
-/*     */   public char getIconChar() {
-/*  88 */     return this.iconChar;
-/*  89 */   } public void setIconChar(char iconChar) { this.iconChar = iconChar; }
-/*  90 */   public int getSlot() { return this.slot; }
-/*  91 */   public void setSlot(int slot) { this.slot = slot; }
-/*  92 */   public String getMaterial() { return this.material; }
-/*  93 */   public void setMaterial(String material) { this.material = material; }
-/*  94 */   public int getAmount() { return this.amount; }
-/*  95 */   public void setAmount(int amount) { this.amount = amount; }
-/*  96 */   public String getName() { return this.name; }
-/*  97 */   public void setName(String name) { this.name = name; }
-/*  98 */   public List<String> getLore() { return this.lore; }
-/*  99 */   public void setLore(List<String> lore) { this.lore = lore; }
-/* 100 */   public Map<String, List<String>> getActions() { return this.actions; }
-/* 101 */   public void setActions(String type, List<String> actions) { this.actions.put(type, actions); }
-/* 102 */   public boolean isGlowing() { return this.glowing; }
-/* 103 */   public void setGlowing(boolean glowing) { this.glowing = glowing; }
-/* 104 */   public String getSkullOwner() { return this.skullOwner; } public void setSkullOwner(String skullOwner) {
-/* 105 */     this.skullOwner = skullOwner;
-/*     */   }
-/*     */ }
+package gofd.gFMenu.menu;
 
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+/** A menu item together with the actions that belong to its menu slot. */
+public final class LayoutMenuItem {
+
+    private String material = Material.STONE.name();
+    private int amount = 1;
+    private String name = "";
+    private List<String> lore = new ArrayList<>();
+    private final Map<String, List<String>> actions = new LinkedHashMap<>();
+    private int slot;
+    private char iconChar = ' ';
+    private boolean glowing;
+    private String skullOwner;
+    private String sourceKey;
+
+    public ItemStack toItemStack() {
+        Material parsedMaterial = Material.matchMaterial(material == null ? "" : material);
+        if (parsedMaterial == null || parsedMaterial.isAir()) {
+            parsedMaterial = Material.STONE;
+        }
+
+        int safeAmount = Math.max(1, Math.min(amount, parsedMaterial.getMaxStackSize()));
+        ItemStack item = new ItemStack(parsedMaterial, safeAmount);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+
+        if (name != null && !name.isEmpty()) {
+            meta.setDisplayName(colorize(name));
+        }
+        if (!lore.isEmpty()) {
+            meta.setLore(lore.stream().map(LayoutMenuItem::colorize).toList());
+        }
+        if (glowing) {
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+        if (meta instanceof SkullMeta skullMeta && skullOwner != null && !skullOwner.isBlank()) {
+            skullMeta.setOwner(skullOwner);
+        }
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public void updateDisplayFrom(ItemStack stack) {
+        if (stack == null || stack.getType().isAir()) {
+            throw new IllegalArgumentException("A menu item cannot be created from air");
+        }
+        material = stack.getType().name();
+        amount = Math.max(1, stack.getAmount());
+
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) {
+            name = "";
+            lore = new ArrayList<>();
+            glowing = false;
+            skullOwner = null;
+            return;
+        }
+
+        name = meta.hasDisplayName() ? meta.getDisplayName() : "";
+        lore = meta.hasLore() && meta.getLore() != null
+                ? new ArrayList<>(meta.getLore())
+                : new ArrayList<>();
+        glowing = !stack.getEnchantments().isEmpty();
+        skullOwner = meta instanceof SkullMeta skullMeta ? skullMeta.getOwner() : null;
+    }
+
+    public List<String> getActions(String type) {
+        List<String> matching = actions.get(normalizeActionType(type));
+        if (matching != null) {
+            return List.copyOf(matching);
+        }
+        List<String> all = actions.get("all");
+        return all == null ? List.of() : List.copyOf(all);
+    }
+
+    public boolean hasActions(String type) {
+        return !getActions(type).isEmpty();
+    }
+
+    public Map<String, List<String>> getActions() {
+        Map<String, List<String>> copy = new LinkedHashMap<>();
+        actions.forEach((type, values) -> copy.put(type, List.copyOf(values)));
+        return Map.copyOf(copy);
+    }
+
+    public void setActions(String type, List<String> values) {
+        String normalizedType = normalizeActionType(type);
+        if (values == null || values.isEmpty()) {
+            actions.remove(normalizedType);
+            return;
+        }
+        actions.put(normalizedType, new ArrayList<>(values));
+    }
+
+    public void addAction(String type, String action) {
+        if (action == null || action.isBlank()) {
+            return;
+        }
+        actions.computeIfAbsent(normalizeActionType(type), ignored -> new ArrayList<>()).add(action);
+    }
+
+    public void removeAction(String type, int index) {
+        String normalizedType = normalizeActionType(type);
+        List<String> values = actions.get(normalizedType);
+        if (values == null || index < 0 || index >= values.size()) {
+            throw new IllegalArgumentException("Action index is out of range");
+        }
+        values.remove(index);
+        if (values.isEmpty()) {
+            actions.remove(normalizedType);
+        }
+    }
+
+    private static String normalizeActionType(String type) {
+        return type == null || type.isBlank() ? "all" : type.toLowerCase(Locale.ROOT);
+    }
+
+    public static String colorize(String value) {
+        return ChatColor.translateAlternateColorCodes('&', value == null ? "" : value);
+    }
+
+    public char getIconChar() {
+        return iconChar;
+    }
+
+    public void setIconChar(char iconChar) {
+        this.iconChar = iconChar;
+    }
+
+    public int getSlot() {
+        return slot;
+    }
+
+    public void setSlot(int slot) {
+        this.slot = slot;
+    }
+
+    public String getMaterial() {
+        return material;
+    }
+
+    public void setMaterial(String material) {
+        this.material = material == null || material.isBlank() ? Material.STONE.name() : material;
+    }
+
+    public int getAmount() {
+        return amount;
+    }
+
+    public void setAmount(int amount) {
+        this.amount = Math.max(1, amount);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name == null ? "" : name;
+    }
+
+    public List<String> getLore() {
+        return List.copyOf(lore);
+    }
+
+    public void setLore(List<String> lore) {
+        this.lore = lore == null ? new ArrayList<>() : new ArrayList<>(lore);
+    }
+
+    public boolean isGlowing() {
+        return glowing;
+    }
+
+    public void setGlowing(boolean glowing) {
+        this.glowing = glowing;
+    }
+
+    public String getSkullOwner() {
+        return skullOwner;
+    }
+
+    public void setSkullOwner(String skullOwner) {
+        this.skullOwner = skullOwner;
+    }
+
+    public String getSourceKey() {
+        return sourceKey;
+    }
+
+    public void setSourceKey(String sourceKey) {
+        this.sourceKey = sourceKey;
+    }
+}

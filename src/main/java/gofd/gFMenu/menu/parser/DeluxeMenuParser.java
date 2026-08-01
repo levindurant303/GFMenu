@@ -1,166 +1,105 @@
-/*     */ package gofd.gFMenu.menu.parser;
-/*     */ 
-/*     */ import gofd.gFMenu.menu.LayoutMenuData;
-/*     */ import gofd.gFMenu.menu.LayoutMenuItem;
-/*     */ import gofd.gFMenu.menu.format.MenuFormat;
-/*     */ import java.util.ArrayList;
-/*     */ import java.util.List;
-/*     */ import org.bukkit.configuration.ConfigurationSection;
-/*     */ import org.bukkit.configuration.file.YamlConfiguration;
-/*     */ 
-/*     */ public class DeluxeMenuParser
-/*     */   implements MenuParser
-/*     */ {
-/*     */   public MenuFormat getFormat() {
-/*  15 */     return MenuFormat.DELUXE;
-/*     */   }
-/*     */ 
-/*     */   
-/*     */   public LayoutMenuData parse(String menuName, YamlConfiguration config) {
-/*  20 */     LayoutMenuData menuData = new LayoutMenuData(menuName);
-/*     */ 
-/*     */     
-/*  23 */     String title = config.getString("menu_title", "菜单");
-/*  24 */     menuData.setTitle(title.replace("&", "§"));
-/*     */ 
-/*     */     
-/*  27 */     menuData.setCenterEnabled(false);
-/*     */ 
-/*     */     
-/*  30 */     String openCommand = config.getString("open_command");
-/*  31 */     if (openCommand != null && !openCommand.isEmpty()) {
-/*  32 */       List<String> commands = new ArrayList<>();
-/*  33 */       commands.add(openCommand);
-/*  34 */       menuData.setCommands(commands);
-/*     */     } 
-/*     */ 
-/*     */     
-/*  38 */     if (config.getBoolean("open_requires_permission", false)) {
-/*  39 */       menuData.setPermission(config.getString("open_permission"));
-/*     */     }
-/*     */ 
-/*     */     
-/*  43 */     int menuSize = config.getInt("menu_size", 54);
-/*  44 */     List<String> layoutRows = generateVirtualLayout(menuSize);
-/*  45 */     menuData.setRawLayout(layoutRows);
-/*     */ 
-/*     */     
-/*  48 */     char iconChar = 'A';
-/*  49 */     for (String itemKey : config.getKeys(false)) {
-/*  50 */       ConfigurationSection itemConfig = config.getConfigurationSection(itemKey);
-/*     */ 
-/*     */       
-/*  53 */       if (itemConfig == null || !itemConfig.contains("slot")) {
-/*     */         continue;
-/*     */       }
-/*     */ 
-/*     */       
-/*  58 */       LayoutMenuItem item = parseDeluxeItem(iconChar, itemConfig);
-/*  59 */       if (item != null) {
-/*  60 */         menuData.addItem(iconChar, item);
-/*  61 */         iconChar = (char)(iconChar + 1);
-/*     */       } 
-/*     */     } 
-/*     */     
-/*  65 */     return menuData;
-/*     */   }
-/*     */   
-/*     */   private LayoutMenuItem parseDeluxeItem(char iconChar, ConfigurationSection config) {
-/*  69 */     LayoutMenuItem item = new LayoutMenuItem();
-/*     */ 
-/*     */     
-/*  72 */     int slot = config.getInt("slot", 0);
-/*  73 */     if (slot < 0 || slot >= 54) {
-/*  74 */       return null;
-/*     */     }
-/*  76 */     item.setSlot(slot);
-/*  77 */     item.setIconChar(iconChar);
-/*     */ 
-/*     */     
-/*  80 */     String material = config.getString("material", "STONE");
-/*  81 */     item.setMaterial(material);
-/*     */ 
-/*     */     
-/*  84 */     String name = config.getString("display_name", "物品");
-/*  85 */     item.setName(name.replace("&", "§"));
-/*     */ 
-/*     */     
-/*  88 */     List<String> lore = config.getStringList("lore");
-/*  89 */     List<String> coloredLore = new ArrayList<>();
-/*  90 */     for (String line : lore) {
-/*  91 */       coloredLore.add(line.replace("&", "§"));
-/*     */     }
-/*  93 */     item.setLore(coloredLore);
-/*     */ 
-/*     */     
-/*  96 */     item.setAmount(config.getInt("amount", 1));
-/*     */ 
-/*     */     
-/*  99 */     List<String> allActions = new ArrayList<>();
-/*     */ 
-/*     */     
-/* 102 */     List<String> leftCommands = config.getStringList("left_click_commands");
-/* 103 */     if (!leftCommands.isEmpty()) {
-/* 104 */       item.setActions("left", convertDeluxeCommands(leftCommands));
-/*     */     }
-/*     */ 
-/*     */     
-/* 108 */     List<String> rightCommands = config.getStringList("right_click_commands");
-/* 109 */     if (!rightCommands.isEmpty()) {
-/* 110 */       item.setActions("right", convertDeluxeCommands(rightCommands));
-/*     */     }
-/*     */ 
-/*     */     
-/* 114 */     if (config.getBoolean("glow", false)) {
-/* 115 */       allActions.add("effect: GLOW-30-1");
-/*     */     }
-/*     */     
-/* 118 */     if (!allActions.isEmpty()) {
-/* 119 */       item.setActions("all", allActions);
-/*     */     }
-/*     */     
-/* 122 */     return item;
-/*     */   }
-/*     */   
-/*     */   private List<String> convertDeluxeCommands(List<String> deluxeCommands) {
-/* 126 */     List<String> converted = new ArrayList<>();
-/*     */     
-/* 128 */     for (String cmd : deluxeCommands) {
-/* 129 */       if (cmd == null || cmd.trim().isEmpty())
-/*     */         continue; 
-/* 131 */       String trimmed = cmd.trim();
-/*     */ 
-/*     */       
-/* 134 */       if (trimmed.startsWith("[player]")) {
-/* 135 */         String content = trimmed.substring(8).trim();
-/* 136 */         if (content.startsWith("msg:")) {
-/* 137 */           converted.add("tell: " + content.substring(4).trim()); continue;
-/* 138 */         }  if (content.startsWith("cmd:"))
-/* 139 */           converted.add("command: " + content.substring(4).trim());  continue;
-/*     */       } 
-/* 141 */       if (trimmed.startsWith("[console]")) {
-/* 142 */         converted.add("op: " + trimmed.substring(9).trim()); continue;
-/* 143 */       }  if (trimmed.startsWith("[close]")) {
-/* 144 */         converted.add("close"); continue;
-/* 145 */       }  if (trimmed.startsWith("[open]")) {
-/* 146 */         converted.add("menu: " + trimmed.substring(6).trim()); continue;
-/* 147 */       }  if (trimmed.startsWith("[sound]")) {
-/* 148 */         converted.add("sound: " + trimmed.substring(7).trim());
-/*     */       }
-/*     */     } 
-/*     */     
-/* 152 */     return converted;
-/*     */   }
-/*     */   
-/*     */   private List<String> generateVirtualLayout(int menuSize) {
-/* 156 */     List<String> layout = new ArrayList<>();
-/* 157 */     int rows = Math.max(1, menuSize / 9);
-/*     */ 
-/*     */     
-/* 160 */     for (int i = 0; i < rows; i++) {
-/* 161 */       layout.add("         ");
-/*     */     }
-/*     */     
-/* 164 */     return layout;
-/*     */   }
-/*     */ }
+package gofd.gFMenu.menu.parser;
+
+import gofd.gFMenu.menu.LayoutMenuData;
+import gofd.gFMenu.menu.LayoutMenuItem;
+import gofd.gFMenu.menu.format.MenuFormat;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
+
+import java.util.List;
+
+public final class DeluxeMenuParser implements MenuParser {
+
+    @Override
+    public MenuFormat getFormat() {
+        return MenuFormat.DELUXE;
+    }
+
+    @Override
+    public LayoutMenuData parse(String menuName, YamlConfiguration config) {
+        LayoutMenuData menu = new LayoutMenuData(menuName);
+        menu.setTitle(config.getString("menu_title", config.getString("title", "Menu")));
+        menu.setPermission(config.getString("open_permission"));
+        menu.setCommands(config.getStringList("open_command"));
+        menu.setMenuSize(normalizeSize(config.getInt("size", config.getInt("menu_size", 54))));
+        menu.setOpenEvents(config.getStringList("open_commands"));
+        menu.setCloseEvents(config.getStringList("close_commands"));
+
+        ConfigurationSection nestedItems = config.getConfigurationSection("items");
+        if (nestedItems != null) {
+            parseItems(menu, nestedItems, "items.");
+        }
+        parseItems(menu, config, "");
+        return menu;
+    }
+
+    private void parseItems(LayoutMenuData menu, ConfigurationSection root, String prefix) {
+        char nextIcon = (char) ('A' + menu.getItems().size());
+        for (String key : root.getKeys(false)) {
+            ConfigurationSection section = root.getConfigurationSection(key);
+            if (section == null || !section.contains("slot")) {
+                continue;
+            }
+            int slot = section.getInt("slot", -1);
+            if (slot < 0 || slot >= menu.getMenuSize()) {
+                continue;
+            }
+
+            LayoutMenuItem item = new LayoutMenuItem();
+            item.setIconChar(nextIcon);
+            item.setSlot(slot);
+            item.setSourceKey(prefix + key);
+            item.setMaterial(section.getString("material", "STONE"));
+            item.setName(section.getString("display_name", section.getString("name", "")));
+            item.setLore(section.getStringList("lore"));
+            item.setAmount(section.getInt("amount", 1));
+            item.setGlowing(section.getBoolean("glow", false));
+            item.setSkullOwner(section.getString("skull_owner"));
+            item.setActions("left", convertCommands(section.getStringList("left_click_commands")));
+            item.setActions("right", convertCommands(section.getStringList("right_click_commands")));
+            item.setActions("all", convertCommands(section.getStringList("click_commands")));
+            menu.addItem(nextIcon, item);
+            nextIcon++;
+        }
+    }
+
+    private List<String> convertCommands(List<String> commands) {
+        return commands.stream()
+                .filter(command -> command != null && !command.isBlank())
+                .map(this::convertCommand)
+                .toList();
+    }
+
+    private String convertCommand(String command) {
+        String trimmed = command.trim();
+        String lowercase = trimmed.toLowerCase(java.util.Locale.ROOT);
+        if (lowercase.startsWith("command:") || lowercase.startsWith("console:")
+                || lowercase.startsWith("tell:") || lowercase.startsWith("message:")
+                || lowercase.startsWith("chat:") || lowercase.startsWith("menu:")
+                || lowercase.startsWith("sound:") || lowercase.startsWith("catcher:")
+                || lowercase.startsWith("book:") || lowercase.equals("close")) {
+            return trimmed;
+        }
+        if (trimmed.regionMatches(true, 0, "[player]", 0, 8)) {
+            return "command: " + trimmed.substring(8).trim();
+        }
+        if (trimmed.regionMatches(true, 0, "[console]", 0, 9)) {
+            return "console: " + trimmed.substring(9).trim();
+        }
+        if (trimmed.regionMatches(true, 0, "[close]", 0, 7)) {
+            return "close";
+        }
+        if (trimmed.regionMatches(true, 0, "[open]", 0, 6)) {
+            return "menu: " + trimmed.substring(6).trim();
+        }
+        if (trimmed.regionMatches(true, 0, "[message]", 0, 9)) {
+            return "tell: " + trimmed.substring(9).trim();
+        }
+        return "command: " + trimmed;
+    }
+
+    private int normalizeSize(int size) {
+        int bounded = Math.max(9, Math.min(54, size));
+        return ((bounded + 8) / 9) * 9;
+    }
+}
