@@ -60,7 +60,7 @@ public final class GFMenu extends JavaPlugin {
                 this, () -> menuManager.getActionEngine().cleanupTimeoutSessions(), 600L, 600L);
 
         // Preserve the original startup banner and author lines.
-        getLogger().info("GFMenu v1.0.3 已启用！");
+        getLogger().info("GFMenu v1.1.0 已启用！");
         getLogger().info("  GGGG   FFFFF M         M");
         getLogger().info(" G       F     MM       MM");
         getLogger().info(" G   GGG FFFFF M  M   M  M");
@@ -90,14 +90,16 @@ public final class GFMenu extends JavaPlugin {
         instance = null;
     }
 
-    public void reloadPlugin() {
+    public boolean reloadPlugin() {
         try {
             reloadConfig();
             languageManager.reload();
             menuManager.reloadGlobalConfig();
             menuManager.reloadMenus();
+            return true;
         } catch (RuntimeException exception) {
-            getLogger().log(Level.SEVERE, "Unable to reload GFMenu", exception);
+            getLogger().log(Level.SEVERE, "加载失败了，请联系作者: GOFD QQ:2816958994", exception);
+            return false;
         }
     }
 

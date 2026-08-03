@@ -7,6 +7,8 @@ import gofd.gFMenu.menu.format.MenuFormat;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -77,12 +79,86 @@ public final class TrMenuParser implements MenuParser {
 
         Object actions = config.get("actions");
         if (actions instanceof List<?>) {
-            item.setActions("all", config.getStringList("actions"));
+            item.setActions("all", parseActionValues(actions));
         } else if (actions instanceof ConfigurationSection actionSection) {
             for (String type : actionSection.getKeys(false)) {
-                item.setActions(type, actionSection.getStringList(type));
+                item.setActions(type, parseActionValues(actionSection.get(type)));
             }
         }
         return item;
+    }
+
+    private List<String> parseActionValues(Object configured) {
+        List<String> actions = new ArrayList<>();
+        if (configured instanceof String action) {
+            if (!action.isBlank()) {
+                actions.add(action);
+            }
+        } else if (configured instanceof List<?> values) {
+            for (Object value : values) {
+                actions.addAll(parseActionValues(value));
+            }
+        } else {
+            Map<String, Object> values = sectionValues(configured);
+            Object catchers = values.get("catcher");
+            if (catchers != null) {
+                actions.addAll(parseCatchers(catchers));
+            }
+        }
+        return actions;
+    }
+
+    private List<String> parseCatchers(Object configured) {
+        List<String> actions = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : sectionValues(configured).entrySet()) {
+            Map<String, Object> catcher = sectionValues(entry.getValue());
+            StringBuilder action = new StringBuilder("catcher:").append(entry.getKey());
+            appendSegments(action, "start", parseActionValues(catcher.get("start")));
+            appendSegments(action, "cancel", parseActionValues(catcher.get("cancel")));
+            appendSegments(action, "end", extractEndActions(catcher.get("end")));
+            actions.add(action.toString());
+        }
+        return actions;
+    }
+
+    private List<String> extractEndActions(Object configured) {
+        List<String> direct = parseActionValues(configured);
+        if (!direct.isEmpty()) {
+            return direct;
+        }
+        List<String> actions = new ArrayList<>();
+        if (configured instanceof List<?> values) {
+            for (Object value : values) {
+                actions.addAll(extractEndActions(value));
+            }
+            return actions;
+        }
+        Map<String, Object> values = sectionValues(configured);
+        if (values.containsKey("actions")) {
+            actions.addAll(parseActionValues(values.get("actions")));
+        } else if (values.containsKey("action")) {
+            actions.addAll(parseActionValues(values.get("action")));
+        }
+        return actions;
+    }
+
+    private static void appendSegments(StringBuilder action, String key, List<String> values) {
+        for (String value : values) {
+            action.append('|').append(key).append('=').append(value);
+        }
+    }
+
+    private static Map<String, Object> sectionValues(Object configured) {
+        Map<?, ?> source;
+        if (configured instanceof ConfigurationSection section) {
+            source = section.getValues(false);
+        } else if (configured instanceof Map<?, ?> map) {
+            source = map;
+        } else {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        source.forEach((key, value) -> values.put(String.valueOf(key), value));
+        return values;
     }
 }

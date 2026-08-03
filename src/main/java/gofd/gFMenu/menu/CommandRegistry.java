@@ -9,7 +9,6 @@ import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -68,11 +67,12 @@ public final class CommandRegistry {
                 command.unregister(commandMap);
             }
             if (knownCommands != null) {
-                Iterator<Map.Entry<String, Command>> entries = knownCommands.entrySet().iterator();
-                while (entries.hasNext()) {
-                    if (entries.next().getValue() == command) {
-                        entries.remove();
-                    }
+                List<String> commandKeys = knownCommands.entrySet().stream()
+                        .filter(entry -> entry.getValue() == command)
+                        .map(Map.Entry::getKey)
+                        .toList();
+                for (String commandKey : commandKeys) {
+                    knownCommands.remove(commandKey, command);
                 }
             }
         }

@@ -85,11 +85,8 @@ public class CatcherAction implements Action, Listener {
             player.sendMessage("§e" + startMessage.replace("&", "§"));
 
             // 创建捕获会话
-            ActionEngine.CatcherSession session =
-                    new ActionEngine.CatcherSession(player, catcherName, endActions,
-                            Arrays.asList("tell: " + cancelMessage), engine);
-
-            actionEngine.startCatcherSession(player, session);
+            actionEngine.startCatcherSession(player, catcherName, List.of(), endActions,
+                    List.of("tell: " + cancelMessage));
 
         } catch (Exception e) {
             player.sendMessage("§c捕获配置解析错误");

@@ -5,6 +5,7 @@ menu_not_found: "&c菜单不存在或尚未加载。"
 menu_open_no_permission: "&c你没有权限打开此菜单。"
 menu_command_no_permission: "&c你没有权限使用此菜单命令。"
 reload_success: "&aGFMenu 已重载。"
+reload_failed: "&cGFMenu 重载失败，请查看服务器日志。"
 
 state:
   enabled: "&a已启用"
@@ -27,6 +28,7 @@ command:
   debug_commands: "&6动态命令：&f{0}"
   config_usage: "&c用法：/gfmenu config <status|reload>"
   config_reloaded: "&a配置已重载。"
+  config_reload_failed: "&c配置重载失败，请查看服务器日志。"
   lang_current: "&7当前语言：&f{0}"
   lang_supported: "&c支持的语言：zh_CN、en_US"
   lang_changed: "&a语言已切换为 &f{0}"
@@ -72,6 +74,7 @@ editor:
   actions_saved: "&a物品动作已保存。"
   slot_saved: "&a槽位 {0} 已保存，已回到菜单编辑页。"
   book_input_tip: "&a写完后点击“完成”，会自动回到物品设置页。"
+  book_open_failed: "&c无法打开可写书，请查看服务器日志。"
   panel:
     title: "&8编辑物品：&f槽位 {0}"
     preview: "&f当前物品"

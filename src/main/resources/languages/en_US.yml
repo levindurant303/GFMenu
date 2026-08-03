@@ -5,6 +5,7 @@ menu_not_found: "&cMenu not found or not loaded."
 menu_open_no_permission: "&cYou do not have permission to open this menu."
 menu_command_no_permission: "&cYou do not have permission to use this menu command."
 reload_success: "&aGFMenu reloaded."
+reload_failed: "&cGFMenu reload failed. Check the server log."
 
 state:
   enabled: "&aenabled"
@@ -27,6 +28,7 @@ command:
   debug_commands: "&6Dynamic commands: &f{0}"
   config_usage: "&cUsage: /gfmenu config <status|reload>"
   config_reloaded: "&aConfiguration reloaded."
+  config_reload_failed: "&cConfiguration reload failed. Check the server log."
   lang_current: "&7Current language: &f{0}"
   lang_supported: "&cSupported languages: zh_CN, en_US"
   lang_changed: "&aLanguage changed to &f{0}"
@@ -72,6 +74,7 @@ editor:
   actions_saved: "&aItem actions saved."
   slot_saved: "&aSlot {0} saved and returned to the menu editor."
   book_input_tip: "&aClick Done when finished to return to the item settings page."
+  book_open_failed: "&cUnable to open the writable book. Check the server log."
   panel:
     title: "&8Edit item: &fslot {0}"
     preview: "&fCurrent item"

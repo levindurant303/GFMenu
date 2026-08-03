@@ -46,7 +46,7 @@ public final class CatcherSession {
         }
         active = false;
         for (String action : endActions) {
-            actionEngine.executeSingleAction(player, replaceInput(action, input));
+            actionEngine.executeSingleAction(player, replaceInput(action, input, id));
         }
     }
 
@@ -81,10 +81,12 @@ public final class CatcherSession {
         return id;
     }
 
-    private static String replaceInput(String action, String input) {
+    static String replaceInput(String action, String input, String catcherId) {
         return action.replace("{input}", input)
                 .replace("%input%", input)
                 .replace("%player_input%", input)
-                .replace("%trmenu_meta_input-", "%trmenu_meta_input-");
+                .replace("{meta:input}", input)
+                .replace("%trmenu_meta_input%", input)
+                .replace("%trmenu_meta_input-" + catcherId + "%", input);
     }
 }

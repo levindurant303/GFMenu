@@ -24,6 +24,8 @@ import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -450,7 +452,16 @@ public final class MenuEditor implements Listener {
         }
         send(player, "editor.book_input_tip");
         player.getInventory().setItem(heldSlot, book);
-        player.openBook(book);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (pendingBookEdits.get(player.getUniqueId()) != session || !player.isOnline()) {
+                return;
+            }
+            if (!sendOpenWritableBookPacket(player)) {
+                pendingBookEdits.remove(player.getUniqueId(), session);
+                restoreHeldItem(player, session);
+                send(player, "editor.book_open_failed");
+            }
+        });
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (pendingBookEdits.remove(player.getUniqueId(), session)) {
                 restoreHeldItem(player, session);
@@ -460,6 +471,56 @@ public final class MenuEditor implements Listener {
                 }
             }
         }, 2400L);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private boolean sendOpenWritableBookPacket(Player player) {
+        try {
+            Class<?> handClass = Class.forName("net.minecraft.world.InteractionHand");
+            Object mainHand = Enum.valueOf((Class<? extends Enum>) handClass.asSubclass(Enum.class), "MAIN_HAND");
+            Class<?> packetClass = Class.forName("net.minecraft.network.protocol.game.ClientboundOpenBookPacket");
+            Object packet = packetClass.getConstructor(handClass).newInstance(mainHand);
+
+            Object handle = player.getClass().getMethod("getHandle").invoke(player);
+            Field connectionField = findField(handle.getClass(), "connection");
+            if (connectionField == null) {
+                throw new NoSuchFieldException("connection");
+            }
+            connectionField.setAccessible(true);
+            Object connection = connectionField.get(handle);
+            if (connection == null) {
+                throw new IllegalStateException("Player connection is unavailable");
+            }
+
+            Method sendMethod = null;
+            for (Method method : connection.getClass().getMethods()) {
+                if (method.getName().equals("send") && method.getParameterCount() == 1
+                        && method.getParameterTypes()[0].isAssignableFrom(packetClass)) {
+                    sendMethod = method;
+                    break;
+                }
+            }
+            if (sendMethod == null) {
+                throw new NoSuchMethodException("send(Packet)");
+            }
+            sendMethod.invoke(connection, packet);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError exception) {
+            plugin.getLogger().warning("Unable to open writable editor book: " + exception.getMessage());
+            return false;
+        }
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
     }
 
     private List<String> createFieldBookPages(BookFields fields, BookField field) {

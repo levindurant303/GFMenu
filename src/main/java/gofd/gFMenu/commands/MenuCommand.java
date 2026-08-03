@@ -44,7 +44,7 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
             case "edit" -> edit(sender, args);
             default -> {
                 if (sender instanceof Player player) {
-                    menuManager.openMenu(player, args[0]);
+                    menuManager.openMenu(player, join(args, 0));
                 } else {
                     sendKey(sender, "player_only_open");
                 }
@@ -57,8 +57,7 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         if (!requireAdmin(sender)) {
             return;
         }
-        plugin.reloadPlugin();
-        sendKey(sender, "reload_success");
+        sendKey(sender, plugin.reloadPlugin() ? "reload_success" : "reload_failed");
     }
 
     private void open(CommandSender sender, String[] args) {
@@ -74,7 +73,7 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
             sendKey(sender, "command.open_usage");
             return;
         }
-        menuManager.openMenu(player, args[1]);
+        menuManager.openMenu(player, join(args, 1));
     }
 
     private void list(CommandSender sender) {
@@ -108,8 +107,9 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         if (args[1].equalsIgnoreCase("status")) {
             send(sender, menuManager.getGlobalConfigStatus());
         } else if (args[1].equalsIgnoreCase("reload")) {
-            plugin.reloadPlugin();
-            sendKey(sender, "command.config_reloaded");
+            sendKey(sender, plugin.reloadPlugin()
+                    ? "command.config_reloaded"
+                    : "command.config_reload_failed");
         } else {
             sendKey(sender, "command.config_usage");
         }
@@ -145,21 +145,28 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        String menuName = args[1];
-        if (args.length == 2) {
+        ResolvedMenuArgument resolvedMenu = resolveMenuArgument(args, 1);
+        if (resolvedMenu == null) {
+            sendResult(sender, menuEditor.openEditor(player, join(args, 1)));
+            return;
+        }
+
+        String menuName = resolvedMenu.menuName();
+        String[] editArgs = normalizeEditArguments(args, resolvedMenu);
+        if (editArgs.length == 2) {
             sendResult(sender, menuEditor.openEditor(player, menuName));
             return;
         }
 
-        String field = args[2].toLowerCase(Locale.ROOT);
+        String field = editArgs[2].toLowerCase(Locale.ROOT);
         switch (field) {
-            case "title" -> sendResult(sender, menuEditor.setTitle(menuName, join(args, 3)));
-            case "permission" -> sendResult(sender, menuEditor.setPermission(menuName, join(args, 3)));
-            case "size" -> sendResult(sender, setSize(menuName, args));
-            case "item" -> sendResult(sender, setItem(menuName, args));
-            case "remove" -> sendResult(sender, removeItem(menuName, args));
-            case "lore" -> sendResult(sender, editLore(menuName, args));
-            case "action" -> sendResult(sender, editAction(menuName, args));
+            case "title" -> sendResult(sender, menuEditor.setTitle(menuName, join(editArgs, 3)));
+            case "permission" -> sendResult(sender, menuEditor.setPermission(menuName, join(editArgs, 3)));
+            case "size" -> sendResult(sender, setSize(menuName, editArgs));
+            case "item" -> sendResult(sender, setItem(menuName, editArgs));
+            case "remove" -> sendResult(sender, removeItem(menuName, editArgs));
+            case "lore" -> sendResult(sender, editLore(menuName, editArgs));
+            case "action" -> sendResult(sender, editAction(menuName, editArgs));
             default -> sendEditHelp(sender);
         }
     }
@@ -276,10 +283,34 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
     }
 
     private static String join(String[] values, int start) {
-        if (start >= values.length) {
+        return join(values, start, values.length);
+    }
+
+    private static String join(String[] values, int start, int end) {
+        if (start >= end) {
             return "";
         }
-        return String.join(" ", java.util.Arrays.copyOfRange(values, start, values.length));
+        return String.join(" ", java.util.Arrays.copyOfRange(values, start, end));
+    }
+
+    private ResolvedMenuArgument resolveMenuArgument(String[] args, int start) {
+        for (int end = args.length; end > start; end--) {
+            String candidate = join(args, start, end);
+            var menu = menuManager.getMenu(candidate);
+            if (menu != null) {
+                return new ResolvedMenuArgument(menu.getName(), end);
+            }
+        }
+        return null;
+    }
+
+    private static String[] normalizeEditArguments(String[] args, ResolvedMenuArgument menu) {
+        int trailingArgumentCount = args.length - menu.endIndex();
+        String[] normalized = new String[2 + trailingArgumentCount];
+        normalized[0] = args[0];
+        normalized[1] = menu.menuName();
+        System.arraycopy(args, menu.endIndex(), normalized, 2, trailingArgumentCount);
+        return normalized;
     }
 
     @Override
@@ -299,5 +330,8 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
     private static List<String> filter(String input, List<String> values) {
         String lowercase = input.toLowerCase(Locale.ROOT);
         return values.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(lowercase)).toList();
+    }
+
+    private record ResolvedMenuArgument(String menuName, int endIndex) {
     }
 }
