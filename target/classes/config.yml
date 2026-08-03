@@ -1,8 +1,0 @@
-# GFMenu configuration
-language: "zh_CN"
-menus-directory: "menus"
-
-layout:
-  default-center: true
-  preserve-spaces: true
-  enable-reports: false
