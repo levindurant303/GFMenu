@@ -1,4 +1,4 @@
-# GFMenu 1.1.0
+# GFMenu 1.1.1
 
 GFMenu is an easy-to-use Minecraft Paper 1.21+ GUI menu plugin with TrMenu- and DeluxeMenus-style YAML support. It provides in-game visual editing, writable book input, player and console commands, and Chinese/English language switching for interactive server menus
 
