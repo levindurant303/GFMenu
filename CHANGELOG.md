@@ -1,5 +1,12 @@
 # Changelog
 
+## R1.1.2 - 2026-08-04
+
+### Changed
+- Updated the server release version 26.1+
+- Updated the plugin release version to 1.1.2.
+- Maven now compiles with Java 25 `release` semantics.
+
 ## R1.1.1 - 2026-08-04
 
 ### Fixed
