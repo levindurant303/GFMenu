@@ -9,7 +9,7 @@ import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -19,7 +19,7 @@ public final class CommandRegistry {
 
     private final GFMenu plugin;
     private final MenuManager menuManager;
-    private final Map<String, Command> registeredCommands = new LinkedHashMap<>();
+    private final OwnedCommandStore<Command> registeredCommands = new OwnedCommandStore<>();
 
     public CommandRegistry(GFMenu plugin, MenuManager menuManager) {
         this.plugin = plugin;
@@ -32,20 +32,23 @@ public final class CommandRegistry {
             if (commandName == null || registeredCommands.containsKey(commandName)) {
                 continue;
             }
-            registerCommand(commandName, menu);
+            Command command = registerCommand(commandName, menu);
+            if (command != null) {
+                registeredCommands.add(normalizeMenuName(menu.getName()), commandName, command);
+            }
         }
     }
 
-    private void registerCommand(String commandName, LayoutMenuData menu) {
+    private Command registerCommand(String commandName, LayoutMenuData menu) {
         CommandMap commandMap = getCommandMap();
         if (commandMap == null) {
             plugin.getLogger().warning("Command map is unavailable; cannot register /" + commandName);
-            return;
+            return null;
         }
         Command existing = commandMap.getCommand(commandName);
         if (existing != null) {
             plugin.getLogger().warning("Skipping menu command /" + commandName + " because it is already registered.");
-            return;
+            return null;
         }
 
         MenuOpenCommand command = new MenuOpenCommand(commandName, plugin, menuManager, menu.getName());
@@ -55,14 +58,23 @@ public final class CommandRegistry {
             command.setPermission(menu.getPermission());
         }
         if (commandMap.register(plugin.getName().toLowerCase(Locale.ROOT), command)) {
-            registeredCommands.put(commandName, command);
+            return command;
         }
+        return null;
+    }
+
+    public void unregisterMenuCommands(String menuName) {
+        unregisterCommands(registeredCommands.removeOwner(normalizeMenuName(menuName)));
     }
 
     public void unregisterAllCommands() {
+        unregisterCommands(registeredCommands.removeAll());
+    }
+
+    private void unregisterCommands(Collection<Command> commands) {
         CommandMap commandMap = getCommandMap();
         Map<String, Command> knownCommands = getKnownCommands(commandMap);
-        for (Command command : registeredCommands.values()) {
+        for (Command command : commands) {
             if (commandMap != null) {
                 command.unregister(commandMap);
             }
@@ -76,7 +88,6 @@ public final class CommandRegistry {
                 }
             }
         }
-        registeredCommands.clear();
     }
 
     public int getRegisteredCommandCount() {
@@ -87,7 +98,7 @@ public final class CommandRegistry {
         if (registeredCommands.isEmpty()) {
             return "No dynamically registered menu commands.";
         }
-        return String.join(", ", registeredCommands.keySet());
+        return String.join(", ", registeredCommands.keys());
     }
 
     private CommandMap getCommandMap() {
@@ -147,6 +158,10 @@ public final class CommandRegistry {
             normalized = normalized.substring(1);
         }
         return normalized.matches("[a-z0-9_:-]+") ? normalized : null;
+    }
+
+    private static String normalizeMenuName(String menuName) {
+        return menuName.toLowerCase(Locale.ROOT);
     }
 
     private static final class MenuOpenCommand extends Command {

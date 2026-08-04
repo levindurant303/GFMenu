@@ -88,31 +88,36 @@ public final class MenuManager {
     }
 
     private boolean loadMenu(File file) {
-        String menuName = fileNameWithoutExtension(file.getName());
-        String key = normalizeName(menuName);
         try {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            if (config.getKeys(false).isEmpty()) {
-                plugin.getLogger().warning("Skipping empty menu file: " + file.getName());
-                return false;
-            }
-
-            MenuFormat format = detectMenuFormat(config);
-            MenuParser parser = parsers.getOrDefault(format, parsers.get(MenuFormat.TRMENU));
-            LayoutMenuData menu = parser.parse(menuName, config);
-            if (format == MenuFormat.TRMENU && !config.contains("Settings.center")) {
-                menu.setCenterEnabled(globalCenterEnabled);
-            }
-
-            loadedMenus.put(key, menu);
-            menuFiles.put(key, file);
-            menuFormats.put(key, format);
-            commandRegistry.registerMenuCommands(menu);
+            installMenu(parseMenu(file, config));
             return true;
         } catch (Exception exception) {
             plugin.getLogger().severe("Failed to load menu " + file.getName() + ": " + exception.getMessage());
             return false;
         }
+    }
+
+    private ParsedMenu parseMenu(File file, YamlConfiguration config) {
+        if (config.getKeys(false).isEmpty()) {
+            throw new IllegalArgumentException("Menu configuration is empty");
+        }
+
+        String menuName = fileNameWithoutExtension(file.getName());
+        MenuFormat format = detectMenuFormat(config);
+        MenuParser parser = parsers.getOrDefault(format, parsers.get(MenuFormat.TRMENU));
+        LayoutMenuData menu = parser.parse(menuName, config);
+        if (format == MenuFormat.TRMENU && !config.contains("Settings.center")) {
+            menu.setCenterEnabled(globalCenterEnabled);
+        }
+        return new ParsedMenu(normalizeName(menuName), file, format, menu);
+    }
+
+    private void installMenu(ParsedMenu parsedMenu) {
+        loadedMenus.put(parsedMenu.key(), parsedMenu.menu());
+        menuFiles.put(parsedMenu.key(), parsedMenu.file());
+        menuFormats.put(parsedMenu.key(), parsedMenu.format());
+        commandRegistry.registerMenuCommands(parsedMenu.menu());
     }
 
     private MenuFormat detectMenuFormat(YamlConfiguration config) {
@@ -176,10 +181,12 @@ public final class MenuManager {
             return false;
         }
         try {
+            ParsedMenu parsedMenu = parseMenu(file, config);
             config.save(file);
-            reloadMenus();
+            commandRegistry.unregisterMenuCommands(menuName);
+            installMenu(parsedMenu);
             return true;
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
             plugin.getLogger().severe("Failed to save menu " + menuName + ": " + exception.getMessage());
             return false;
         }
@@ -231,5 +238,8 @@ public final class MenuManager {
 
     private static String normalizeName(String menuName) {
         return menuName.toLowerCase(Locale.ROOT);
+    }
+
+    private record ParsedMenu(String key, File file, MenuFormat format, LayoutMenuData menu) {
     }
 }
