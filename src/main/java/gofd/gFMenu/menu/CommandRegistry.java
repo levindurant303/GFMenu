@@ -8,6 +8,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -103,19 +105,29 @@ public final class CommandRegistry {
 
     private CommandMap getCommandMap() {
         try {
-            return Bukkit.getCommandMap();
-        } catch (NoSuchMethodError ignored) {
-            try {
-                Field field = findField(Bukkit.getServer().getClass(), "commandMap");
-                if (field == null) {
-                    return null;
-                }
-                field.setAccessible(true);
-                return (CommandMap) field.get(Bukkit.getServer());
-            } catch (ReflectiveOperationException exception) {
-                plugin.getLogger().warning("Unable to access Bukkit command map: " + exception.getMessage());
+            Method method = Bukkit.class.getMethod("getCommandMap");
+            Object value = method.invoke(null);
+            if (value instanceof CommandMap commandMap) {
+                return commandMap;
+            }
+        } catch (NoSuchMethodException ignored) {
+            // Spigot and CraftBukkit expose the map through CraftServer instead.
+        } catch (IllegalAccessException | InvocationTargetException exception) {
+            plugin.getLogger().warning("Unable to call Bukkit command map accessor: " + exception.getMessage());
+        }
+
+        try {
+            Object server = Bukkit.getServer();
+            Field field = findField(server.getClass(), "commandMap");
+            if (field == null) {
                 return null;
             }
+            field.setAccessible(true);
+            Object value = field.get(server);
+            return value instanceof CommandMap commandMap ? commandMap : null;
+        } catch (IllegalAccessException | SecurityException exception) {
+            plugin.getLogger().warning("Unable to access Bukkit command map: " + exception.getMessage());
+            return null;
         }
     }
 

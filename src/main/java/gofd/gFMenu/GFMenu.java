@@ -60,7 +60,7 @@ public final class GFMenu extends JavaPlugin {
                 this, () -> menuManager.getActionEngine().cleanupTimeoutSessions(), 600L, 600L);
 
         // Preserve the original startup banner and author lines.
-        getLogger().info("GFMenu v" + getPluginMeta().getVersion() + " 已启用！");
+        getLogger().info("GFMenu v" + getDescription().getVersion() + " 已启用！");
         getLogger().info("  GGGG   FFFFF M         M");
         getLogger().info(" G       F     MM       MM");
         getLogger().info(" G   GGG FFFFF M  M   M  M");

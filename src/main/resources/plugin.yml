@@ -1,7 +1,7 @@
 name: GFMenu
-version: 1.1.2
+version: 1.1.3
 main: gofd.gFMenu.GFMenu
-api-version: "26.1"
+api-version: "1.21"
 authors: [GOFD]
 description: Menu system with TrMenu and DeluxeMenus compatible formats.
 

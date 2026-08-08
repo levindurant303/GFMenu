@@ -1,5 +1,18 @@
 # Changelog
 
+## R1.1.3-hotfix - 2026-08-08
+
+### Added
+
+- Added Bukkit and Spigot 1.21+ support while retaining Paper compatibility in the same plugin JAR.
+
+### Changed
+
+- Replaced the Paper API build dependency with the minimum `spigot-api:1.21` baseline.
+- Replaced Paper-only plugin metadata and command map calls with Bukkit-compatible access paths.
+- Release builds now use JDK 25 while emitting Java 21-compatible bytecode.
+- Lowered `plugin.yml` API compatibility from `26.1` to `1.21`.
+
 ## R1.1.2 - 2026-08-04
 
 ### Changed
