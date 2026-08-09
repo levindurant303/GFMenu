@@ -1,5 +1,13 @@
 # Changelog
 
+## R1.1.5 - 2026-08-09
+
+### Changed
+
+- Switched the compile dependency from Spigot API to the standalone Bukkit API.
+- Removed all compile-time dependencies on Spigot and Paper APIs while retaining runtime compatibility with both.
+- Kept the runtime API baseline at Minecraft 1.21 and standardized builds on Java 21.
+
 ## R1.1.3-hotfix - 2026-08-08
 
 ### Added
