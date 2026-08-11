@@ -3,8 +3,6 @@
 
 GFMenu is an easy-to-use Bukkit-based Minecraft 1.21+ GUI menu plugin compatible with CraftBukkit, Spigot, Paper, and other Bukkit API server implementations. It provides in-game visual editing, writable book input, player and console commands, and Chinese/English language switching for interactive server menus.
 
-GFMenu requires Java 21 or newer at runtime and is built with JDK 21.
-
 ## Language / 语言
 
 The server-wide player-facing language can be switched at runtime by an administrator:
