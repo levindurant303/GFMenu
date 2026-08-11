@@ -1,0 +1,24 @@
+name: GFMenu
+version: 1.1.6
+main: gofd.gFMenu.GFMenu
+api-version: "1.21"
+authors: [GOFD]
+description: Menu system with TrMenu and DeluxeMenus compatible formats.
+
+commands:
+  gfmenu:
+    description: Manage GFMenu menus
+    usage: /gfmenu [open|list|reload|edit]
+    aliases: [gfm]
+    permission: gfmenu.use
+
+permissions:
+  gfmenu.use:
+    description: Use GFMenu commands
+    default: true
+  gfmenu.open:
+    description: Open menus through /gfmenu open
+    default: true
+  gfmenu.admin:
+    description: Reload and edit menus
+    default: op
