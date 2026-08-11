@@ -105,9 +105,12 @@ public final class GFMenu extends JavaPlugin {
     public boolean areLayoutReportsEnabled() { return menuManager.isReportsEnabled(); }
 
     private void printStartupBanner() {
-        boolean isChinese = "zh_CN".equals(languageManager.getCurrentLanguage());
+        String lang = languageManager.getCurrentLanguage();
+        boolean isChinese = lang.startsWith("zh");
+
         String status = isChinese ? "已启用！" : "enabled!";
         String author = isChinese ? "作者: GOFD QQ:2816958994" : "Author: GOFD QQ:2816958994";
+        String langLabel = isChinese ? "当前语言: " : "Current language: ";
 
         getLogger().info("GFMenu v" + getDescription().getVersion() + " " + status);
         getLogger().info("  GGGG   FFFFF M         M");
@@ -116,9 +119,8 @@ public final class GFMenu extends JavaPlugin {
         getLogger().info(" G    G  F     M   M M   M");
         getLogger().info("  GGGG   F     M    M    M");
         getLogger().info(author);
-        getLogger().info("当前语言: " + languageManager.getCurrentLanguage());
+        getLogger().info(langLabel + lang);
     }
-
     private void printShutdownBanner() {
         boolean isChinese = "zh_CN".equals(languageManager.getCurrentLanguage());
         String status = isChinese ? "已禁用！" : "disabled!";
