@@ -114,6 +114,12 @@ public final class MenuManager {
     }
 
     private void installMenu(ParsedMenu parsedMenu) {
+        LayoutMenuData previous = loadedMenus.get(parsedMenu.key());
+        if (previous != null) {
+            plugin.getLogger().warning("Menu name collision after case normalization: "
+                    + parsedMenu.file().getName() + " replaces " + previous.getName());
+            commandRegistry.unregisterMenuCommands(parsedMenu.key());
+        }
         loadedMenus.put(parsedMenu.key(), parsedMenu.menu());
         menuFiles.put(parsedMenu.key(), parsedMenu.file());
         menuFormats.put(parsedMenu.key(), parsedMenu.format());

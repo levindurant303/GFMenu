@@ -37,7 +37,9 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "reload" -> reload(sender);
             case "open" -> open(sender, args);
+            case "close" -> close(sender);
             case "list" -> list(sender);
+            case "info" -> info(sender, args);
             case "debug" -> debug(sender);
             case "config" -> config(sender, args);
             case "lang" -> language(sender, args);
@@ -61,10 +63,6 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
     }
 
     private void open(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sendKey(sender, "player_only_open");
-            return;
-        }
         if (!sender.hasPermission("gfmenu.open")) {
             sendKey(sender, "command.open_no_permission");
             return;
@@ -73,7 +71,62 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
             sendKey(sender, "command.open_usage");
             return;
         }
-        menuManager.openMenu(player, join(args, 1));
+        ResolvedMenuArgument resolved = resolveMenuArgument(args, 1);
+        if (resolved == null) {
+            sendKey(sender, "menu_not_found");
+            return;
+        }
+        Player target;
+        if (resolved.endIndex() < args.length) {
+            if (!sender.hasPermission("gfmenu.admin")) {
+                sendKey(sender, "command.admin_no_permission");
+                return;
+            }
+            if (args.length - resolved.endIndex() != 1) {
+                sendKey(sender, "command.open_usage");
+                return;
+            }
+            target = plugin.getServer().getPlayerExact(args[resolved.endIndex()]);
+            if (target == null) {
+                sendKey(sender, "command.player_not_found", args[resolved.endIndex()]);
+                return;
+            }
+        } else if (sender instanceof Player player) {
+            target = player;
+        } else {
+            sendKey(sender, "command.open_target_required");
+            return;
+        }
+        menuManager.openMenu(target, resolved.menuName());
+    }
+
+    private void close(CommandSender sender) {
+        if (sender instanceof Player player) {
+            player.closeInventory();
+        } else {
+            sendKey(sender, "player_only");
+        }
+    }
+
+    private void info(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("gfmenu.info") && !sender.hasPermission("gfmenu.admin")) {
+            sendKey(sender, "command.admin_no_permission");
+            return;
+        }
+        if (args.length < 2) {
+            sendKey(sender, "command.info_usage");
+            return;
+        }
+        ResolvedMenuArgument resolved = resolveMenuArgument(args, 1);
+        if (resolved == null || resolved.endIndex() != args.length) {
+            sendKey(sender, "menu_not_found");
+            return;
+        }
+        var menu = menuManager.getMenu(resolved.menuName());
+        sendKey(sender, "command.info_header", menu.getName());
+        sendKey(sender, "command.info_details", menuManager.getMenuFormat(menu.getName()),
+                menu.getInventorySize(), menu.getItemCount(), menu.getPermission() == null ? "none" : menu.getPermission());
+        sendKey(sender, "command.info_commands", menu.getCommands().isEmpty() ? "none" : String.join(", ", menu.getCommands()));
     }
 
     private void list(CommandSender sender) {
@@ -246,6 +299,7 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         sendKey(sender, "command.help_open");
         sendKey(sender, "command.help_other");
         sendKey(sender, "command.help_edit");
+        sendKey(sender, "command.help_info");
     }
 
     private void sendEditHelp(CommandSender sender) {
@@ -316,10 +370,15 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, @NotNull Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(args[0], List.of("open", "list", "reload", "debug", "config", "lang", "edit"));
+            return filter(args[0], List.of("open", "close", "info", "list", "reload", "debug", "config", "lang", "edit"));
         }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("open") || args[0].equalsIgnoreCase("edit"))) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("open")
+                || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info"))) {
             return filter(args[1], new ArrayList<>(menuManager.getAllMenuData().keySet()));
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
+            return filter(args[2], plugin.getServer().getOnlinePlayers().stream()
+                    .map(Player::getName).toList());
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("edit")) {
             return filter(args[2], List.of("title", "permission", "size", "item", "remove", "lore", "action"));

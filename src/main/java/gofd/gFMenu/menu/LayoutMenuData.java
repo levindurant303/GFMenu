@@ -131,6 +131,10 @@ public final class LayoutMenuData {
         return Map.copyOf(items);
     }
 
+    public int getItemCount() {
+        return items.size();
+    }
+
     public List<String> getRawLayout() {
         return List.copyOf(rawLayout);
     }

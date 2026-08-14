@@ -222,7 +222,12 @@ public final class ActionEngine {
     }
 
     private static String replacePlayerPlaceholders(Player player, String value) {
-        return value.replace("%player%", player.getName()).replace("%uuid%", player.getUniqueId().toString());
+        return value.replace("%player%", player.getName())
+                .replace("%uuid%", player.getUniqueId().toString())
+                .replace("%player_uuid%", player.getUniqueId().toString())
+                .replace("%world%", player.getWorld().getName())
+                .replace("%server%", Bukkit.getServer().getName())
+                .replace("%online%", Integer.toString(Bukkit.getOnlinePlayers().size()));
     }
 
     /** Chinese aliases keep book-authored actions readable without changing the YAML action model. */
@@ -256,11 +261,16 @@ public final class ActionEngine {
     }
 
     private static void playSound(Player player, String soundData) {
-        String[] parts = soundData.split("-");
+        String[] parts = soundData.split("-", -1);
         if (parts.length == 0 || parts[0].isBlank()) {
             return;
         }
-        Sound sound = Sound.valueOf(parts[0].trim().toUpperCase(Locale.ROOT).replace(':', '_'));
+        String soundName = parts[0].trim();
+        int namespaceSeparator = soundName.indexOf(':');
+        if (namespaceSeparator >= 0) {
+            soundName = soundName.substring(namespaceSeparator + 1);
+        }
+        Sound sound = Sound.valueOf(soundName.toUpperCase(Locale.ROOT));
         float volume = parts.length > 1 ? Float.parseFloat(parts[1].trim()) : 1.0F;
         float pitch = parts.length > 2 ? Float.parseFloat(parts[2].trim()) : 1.0F;
         player.playSound(player.getLocation(), sound, volume, pitch);

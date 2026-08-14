@@ -1,4 +1,4 @@
-# GFMenu 1.1.1
+# GFMenu Team version
 
 GFMenu is an easy-to-use Minecraft Paper 1.21+ GUI menu plugin with TrMenu- and DeluxeMenus-style YAML support. It provides in-game visual editing, writable book input, player and console commands, and Chinese/English language switching for interactive server menus
 
@@ -10,6 +10,18 @@ The server-wide player-facing language can be switched at runtime by an administ
 /gfmenu lang zh_CN
 /gfmenu lang en_US
 ```
+
+常用管理命令：
+
+```text
+/gfmenu info <menu>                 # 查看格式、大小、物品数和权限
+/gfmenu close                       # 关闭当前菜单
+/gfmenu open <menu> <player>        # 管理员/控制台为在线玩家打开菜单
+```
+
+动作中的 `%player%`、`%uuid%`、`%player_uuid%`、`%world%`、`%server%` 和 `%online%`
+会在执行时替换为当前玩家和服务器信息。`sound:` 也接受 `minecraft:entity_player_levelup-1-1`
+这样的命名空间格式。
 
 `config.yml` defaults to `zh_CN`. The selected language changes command feedback, permission errors, editor titles, the book editor, and input-session messages. Existing language files in the plugin data folder can override individual messages; new bundled keys remain available as defaults after an update.
 

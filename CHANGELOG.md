@@ -1,5 +1,19 @@
 # Changelog
 
+## R1.1.4 - 2026-08-14
+
+### Added
+
+- Added `/gfmenu info <menu>` diagnostics for format, inventory size, item count, permission, and bound commands.
+- Added `/gfmenu close` and console/admin support for `/gfmenu open <menu> <player>`.
+- Added `%player_uuid%`, `%world%`, `%server%`, and `%online%` action placeholders.
+- Added namespaced Minecraft sound support such as `minecraft:block_note_block_harp-1-1`.
+
+### Fixed
+
+- Synchronized the plugin descriptor and documentation version with the 1.1.4 build.
+- Added a warning when menu files collide after case-insensitive name normalization.
+
 ## R1.1.1 - 2026-08-04
 
 ### Fixed
