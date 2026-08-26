@@ -1,6 +1,6 @@
 # Changelog
 
-## R1.1.4 - 2026-08-14
+## R1.2.0 - 2026-08-26
 
 ### Added
 
@@ -11,7 +11,7 @@
 
 ### Fixed
 
-- Synchronized the plugin descriptor and documentation version with the 1.1.4 build.
+- Synchronized the plugin descriptor and documentation version with the 1.2.0 build.
 - Added a warning when menu files collide after case-insensitive name normalization.
 
 ## R1.1.1 - 2026-08-04
