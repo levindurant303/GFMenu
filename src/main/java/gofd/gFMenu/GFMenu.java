@@ -1,6 +1,7 @@
 package gofd.gFMenu;
 
 import gofd.gFMenu.commands.MenuCommand;
+import gofd.gFMenu.checkin.CheckinManager;
 import gofd.gFMenu.menu.MenuManager;
 import gofd.gFMenu.menu.editor.MenuEditor;
 import gofd.gFMenu.menu.events.BookListener;
@@ -17,6 +18,7 @@ public final class GFMenu extends JavaPlugin {
     private static GFMenu instance;
     private MenuManager menuManager;
     private LanguageManager languageManager;
+    private CheckinManager checkinManager;
     private int cleanupTaskId = -1;
 
     public static GFMenu getInstance() {
@@ -31,12 +33,17 @@ public final class GFMenu extends JavaPlugin {
         return languageManager;
     }
 
+    public CheckinManager getCheckinManager() {
+        return checkinManager;
+    }
+
     @Override
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
         languageManager = new LanguageManager(this);
         menuManager = new MenuManager(this);
+        checkinManager = new CheckinManager(this);
 
         PluginCommand mainCommand = getCommand("gfmenu");
         if (mainCommand == null) {
@@ -46,6 +53,7 @@ public final class GFMenu extends JavaPlugin {
         }
 
         MenuEditor editor = new MenuEditor(this, menuManager);
+        menuManager.setReloadListener(editor::invalidateForReload);
         MenuCommand menuCommand = new MenuCommand(this, menuManager, editor);
         mainCommand.setExecutor(menuCommand);
         mainCommand.setTabCompleter(menuCommand);
@@ -91,16 +99,26 @@ public final class GFMenu extends JavaPlugin {
     }
 
     public boolean reloadPlugin() {
+        return reloadPlugin(null);
+    }
+
+    /**
+     * Reloads config and language synchronously (cheap), then schedules the menu reload
+     * asynchronously. {@code onMenusReloaded} runs on the main thread once menus swapped in.
+     *
+     * @return {@code true} if the reload was scheduled successfully
+     */
+    public boolean reloadPlugin(Runnable onMenusReloaded) {
         try {
             reloadConfig();
             languageManager.reload();
             menuManager.reloadGlobalConfig();
-            menuManager.reloadMenus();
-            return true;
+            checkinManager.reloadConfig();
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE, "加载失败了，请联系作者: GOFD QQ:2816958994", exception);
             return false;
         }
+        return menuManager.reloadMenusAsync(onMenusReloaded);
     }
 
     public String getGlobalConfigStatus() {

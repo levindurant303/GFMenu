@@ -6,15 +6,21 @@ import gofd.gFMenu.menu.format.MenuFormat;
 import gofd.gFMenu.menu.parser.DeluxeMenuParser;
 import gofd.gFMenu.menu.parser.MenuParser;
 import gofd.gFMenu.menu.parser.TrMenuParser;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MenuManager {
 
@@ -25,6 +31,10 @@ public final class MenuManager {
     private final Map<MenuFormat, MenuParser> parsers = new LinkedHashMap<>();
     private final CommandRegistry commandRegistry;
     private final ActionEngine actionEngine;
+    /** Guards against overlapping asynchronous reloads. */
+    private final AtomicBoolean asyncReloadInFlight = new AtomicBoolean();
+    /** Notified on the main thread right before reloaded data is swapped in (used to close editor sessions). */
+    private Runnable reloadListener;
     private File menusFolder;
     private boolean globalCenterEnabled = true;
     private boolean preserveSpaces = true;
@@ -58,10 +68,7 @@ public final class MenuManager {
             return;
         }
 
-        File[] files = menusFolder.listFiles((directory, name) -> {
-            String lowercase = name.toLowerCase(Locale.ROOT);
-            return lowercase.endsWith(".yml") || lowercase.endsWith(".yaml");
-        });
+        File[] files = listMenuFiles(menusFolder);
         if (files == null || files.length == 0) {
             plugin.getLogger().info("No menu files found in " + menusFolder.getAbsolutePath());
             return;
@@ -78,6 +85,133 @@ public final class MenuManager {
 
     public synchronized void reloadMenus() {
         loadAllMenus();
+    }
+
+    /**
+     * Reloads every menu without blocking the main thread: file IO and YAML parsing run
+     * asynchronously, then the parsed result is swapped in atomically on the next tick.
+     * The old menus stay fully functional until the swap, so players never see a gap.
+     * <p>
+     * Menu file bytes are snapshotted on the main thread before parsing. Since the
+     * editor's {@link #saveMenuConfiguration} writes files on the main thread too, the
+     * snapshot read can never overlap a write, and the async parse only touches memory.
+     *
+     * @return {@code true} if the reload was scheduled, {@code false} if one is already running
+     */
+    public boolean reloadMenusAsync(Runnable onComplete) {
+        if (!asyncReloadInFlight.compareAndSet(false, true)) {
+            plugin.getLogger().warning("Menu reload already in progress; skipping this request.");
+            return false;
+        }
+        File folder = menusFolder;
+        if (!folder.exists() && !folder.mkdirs()) {
+            asyncReloadInFlight.set(false);
+            plugin.getLogger().severe("Unable to create menu directory: " + folder.getAbsolutePath());
+            return false;
+        }
+        File[] files = listMenuFiles(folder);
+        Map<File, byte[]> snapshots = snapshotMenuBytes(files);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            ParsedReload parsed = snapshots.isEmpty()
+                    ? new ParsedReload(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), 0)
+                    : parseMenusOffThread(snapshots);
+            if (!plugin.isEnabled()) {
+                asyncReloadInFlight.set(false);
+                return;
+            }
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                try {
+                    installReload(parsed);
+                } catch (RuntimeException exception) {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                            "Failed to install reloaded menus", exception);
+                } finally {
+                    asyncReloadInFlight.set(false);
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                }
+            });
+        });
+        return true;
+    }
+
+    /** {@code true} while an asynchronous menu reload is still in progress. */
+    public boolean isReloadInFlight() {
+        return asyncReloadInFlight.get();
+    }
+
+    /** Registers a callback invoked on the main thread just before reloaded menu data replaces the old data. */
+    public void setReloadListener(Runnable listener) {
+        this.reloadListener = listener;
+    }
+
+    /** Reads menu files into memory on the main thread, avoiding races with editor writes. */
+    private static Map<File, byte[]> snapshotMenuBytes(File[] files) {
+        Map<File, byte[]> snapshots = new LinkedHashMap<>();
+        if (files == null) {
+            return snapshots;
+        }
+        for (File file : files) {
+            if (!file.isFile()) {
+                continue;
+            }
+            try {
+                snapshots.put(file, Files.readAllBytes(file.toPath()));
+            } catch (IOException exception) {
+                // Skip unreadable files; they will be reported by the caller's parse step.
+            }
+        }
+        return snapshots;
+    }
+
+    private ParsedReload parseMenusOffThread(Map<File, byte[]> snapshots) {
+        Map<String, LayoutMenuData> menus = new LinkedHashMap<>();
+        Map<String, File> filesByName = new LinkedHashMap<>();
+        Map<String, MenuFormat> formats = new LinkedHashMap<>();
+        int loadedCount = 0;
+        for (Map.Entry<File, byte[]> entry : snapshots.entrySet()) {
+            File file = entry.getKey();
+            try {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(new ByteArrayInputStream(entry.getValue()), StandardCharsets.UTF_8));
+                ParsedMenu parsedMenu = parseMenu(file, config);
+                LayoutMenuData previous = menus.get(parsedMenu.key());
+                if (previous != null) {
+                    plugin.getLogger().warning("Menu name collision after case normalization: "
+                            + file.getName() + " replaces " + previous.getName());
+                }
+                menus.put(parsedMenu.key(), parsedMenu.menu());
+                filesByName.put(parsedMenu.key(), parsedMenu.file());
+                formats.put(parsedMenu.key(), parsedMenu.format());
+                loadedCount++;
+            } catch (Exception exception) {
+                plugin.getLogger().severe("Failed to load menu " + file.getName() + ": " + exception.getMessage());
+            }
+        }
+        return new ParsedReload(menus, filesByName, formats, loadedCount);
+    }
+
+    private synchronized void installReload(ParsedReload parsed) {
+        commandRegistry.unregisterAllCommands();
+        if (reloadListener != null) {
+            reloadListener.run();
+        }
+        loadedMenus.clear();
+        menuFiles.clear();
+        menuFormats.clear();
+        loadedMenus.putAll(parsed.menus());
+        menuFiles.putAll(parsed.files());
+        menuFormats.putAll(parsed.formats());
+        parsed.menus().values().forEach(commandRegistry::registerMenuCommands);
+        plugin.getLogger().info("Loaded " + parsed.loadedCount() + " menu(s).");
+    }
+
+    private static File[] listMenuFiles(File folder) {
+        return folder.listFiles((directory, name) -> {
+            String lowercase = name.toLowerCase(Locale.ROOT);
+            return lowercase.endsWith(".yml") || lowercase.endsWith(".yaml");
+        });
     }
 
     public synchronized void unloadAllMenus() {
@@ -247,5 +381,9 @@ public final class MenuManager {
     }
 
     private record ParsedMenu(String key, File file, MenuFormat format, LayoutMenuData menu) {
+    }
+
+    private record ParsedReload(Map<String, LayoutMenuData> menus, Map<String, File> files,
+                                Map<String, MenuFormat> formats, int loadedCount) {
     }
 }

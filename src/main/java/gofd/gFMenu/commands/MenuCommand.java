@@ -59,7 +59,12 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         if (!requireAdmin(sender)) {
             return;
         }
-        sendKey(sender, plugin.reloadPlugin() ? "reload_success" : "reload_failed");
+        if (menuManager.isReloadInFlight()) {
+            sendKey(sender, "reload_busy");
+            return;
+        }
+        boolean scheduled = plugin.reloadPlugin(() -> sendKey(sender, "reload_success"));
+        sendKey(sender, scheduled ? "reload_started" : "reload_failed");
     }
 
     private void open(CommandSender sender, String[] args) {
@@ -160,9 +165,12 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         if (args[1].equalsIgnoreCase("status")) {
             send(sender, menuManager.getGlobalConfigStatus());
         } else if (args[1].equalsIgnoreCase("reload")) {
-            sendKey(sender, plugin.reloadPlugin()
-                    ? "command.config_reloaded"
-                    : "command.config_reload_failed");
+            if (menuManager.isReloadInFlight()) {
+                sendKey(sender, "command.config_reload_busy");
+                return;
+            }
+            boolean scheduled = plugin.reloadPlugin(() -> sendKey(sender, "command.config_reloaded"));
+            sendKey(sender, scheduled ? "command.config_reload_started" : "command.config_reload_failed");
         } else {
             sendKey(sender, "command.config_usage");
         }

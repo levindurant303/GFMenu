@@ -1,0 +1,15 @@
+# GFMenu 签到模块配置
+# 奖励复用菜单动作语法：command: / console: / tell: / sound: / menu: / close 等
+# %player% 会在发放奖励时替换为签到玩家的名字
+
+# 每日基础奖励（每次签到都会发放）
+daily-rewards:
+  - "console: give %player% diamond 1"
+  - "sound: ENTITY_PLAYER_LEVELUP-1-1"
+
+# 连签额外奖励：连签满 N 天时追加发放（key 为连签天数）
+streak-rewards:
+  7:
+    - "console: give %player% emerald 1"
+  30:
+    - "console: give %player% netherite_ingot 1"

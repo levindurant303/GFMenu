@@ -20,6 +20,10 @@
 
     <repositories>
         <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
             <id>bukkit-snapshots</id>
             <url>https://repo.codemc.io/repository/nms/</url>
         </repository>
@@ -41,8 +45,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.bukkit</groupId>
-            <artifactId>bukkit</artifactId>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
             <version>${bukkit.version}</version>
             <scope>provided</scope>
         </dependency>
