@@ -81,3 +81,11 @@ The same action can be added from the editor command:
 ```
 
 Keep `%book_input%` in an argument position of a command owned by a trusted plugin. Do not configure a raw `console: %book_input%` action, because it would allow the player to decide the entire console command.
+
+# ⚠️ 转载/搬运政策 | Repost Policy | Политика перепубликации
+
+**中文**：关于转载/搬运：欢迎中文社区搬运本插件，但请务必保留原作者署名、附上原帖链接，并保持免费下载。如有违反，将发起 DMCA 投诉。
+
+**English**: **Repost Policy**: The Chinese community is welcome to redistribute this plugin, provided that you retain the original author's credit, include a link to the original post, and keep it free to download. Violations will result in a DMCA takedown notice.
+
+**Русский**: **О перепубликации**: Китайское сообщество может свободно распространять этот плагин при условии указания оригинального автора, наличия ссылки на оригинальный пост и сохранения бесплатного доступа. При нарушении этих условий будет подана жалоба в рамках DMCA.
