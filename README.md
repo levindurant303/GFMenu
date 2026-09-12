@@ -1,7 +1,17 @@
+<div align="center">
 
 # GFMenu
 
-GFMenu is an easy-to-use Bukkit-based Minecraft 1.21+ GUI menu plugin compatible with CraftBukkit, Spigot, Paper, and other Bukkit API server implementations. It provides in-game visual editing, writable book input, player and console commands, and Chinese/English language switching for interactive server menus.
+[![SpigotMC](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/spigot_vector.svg)](https://www.spigotmc.org/resources/gfmenu.137753/)
+[![Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg)](https://modrinth.com/plugin/gfmenu)
+
+**GFMenu** 是一个简单易用的、基于 Bukkit 的 Minecraft 1.21+ GUI 菜单插件。
+
+兼容 CraftBukkit、Spigot、Paper 及其他 Bukkit API 服务端实现。它提供了游戏内可视化编辑、可写书本输入、玩家与控制台命令执行，以及交互式服务端菜单的中英文语言切换功能。
+
+</div>
+
+---
 
 ## Language / 语言
 
