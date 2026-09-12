@@ -1,6 +1,9 @@
 <div align="center">
 
-# GFMenu
+<h1 align="center">
+  <img src="https://cdn.modrinth.com/data/xnqZ2y1v/a7b5d9b70909c6f8a537e62c5c5e23f32624f0ec_96.webp" alt="GFMenu" width="27" height="27" style="vertical-align: middle; margin-right: 12px;">
+  GFMenu
+</h1>
 
 [![SpigotMC](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/spigot_vector.svg)](https://www.spigotmc.org/resources/gfmenu.137753/)
 [![Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg)](https://modrinth.com/plugin/gfmenu)
