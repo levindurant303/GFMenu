@@ -7,6 +7,7 @@
 
 [![SpigotMC](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/spigot_vector.svg)](https://www.spigotmc.org/resources/gfmenu.137753/)
 [![Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg)](https://modrinth.com/plugin/gfmenu)
+<a href="https://www.minebbs.com/resources/gfmenu-gui.18252/"><img src="https://beeimg.us.ci/temp/107936cb2e3d2a3c44288d26fcc819a2.jpg" alt="MineBBS" height="56"></a>
 
 **GFMenu** is a simple and easy-to-use, Bukkit-based GUI menu plugin for Minecraft 1.21+.
 
