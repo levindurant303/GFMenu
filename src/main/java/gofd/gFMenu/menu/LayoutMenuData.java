@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,8 @@ public final class LayoutMenuData {
     private List<String> openEvents = new ArrayList<>();
     private List<String> closeEvents = new ArrayList<>();
     private final Map<Character, LayoutMenuItem> items = new LinkedHashMap<>();
+    /** Slot lookup index kept in sync with {@link #items} so clicks resolve in O(1). */
+    private final Map<Integer, LayoutMenuItem> slotIndex = new HashMap<>();
     private List<String> rawLayout = new ArrayList<>();
     private boolean centerEnabled;
     private int menuSize = 54;
@@ -58,21 +61,24 @@ public final class LayoutMenuData {
     }
 
     public LayoutMenuItem getItemAtSlot(int slot) {
-        for (LayoutMenuItem item : items.values()) {
-            if (item.getSlot() == slot) {
-                return item;
-            }
-        }
-        return null;
+        return slotIndex.get(slot);
     }
 
     public void addItem(char iconChar, LayoutMenuItem item) {
         item.setIconChar(iconChar);
-        items.put(iconChar, item);
+        LayoutMenuItem previous = items.put(iconChar, item);
+        if (previous != null) {
+            slotIndex.remove(previous.getSlot(), previous);
+        }
+        // First-wins mirrors the previous linear scan that returned the earliest match.
+        slotIndex.putIfAbsent(item.getSlot(), item);
     }
 
     public void removeItem(char iconChar) {
-        items.remove(iconChar);
+        LayoutMenuItem removed = items.remove(iconChar);
+        if (removed != null) {
+            slotIndex.remove(removed.getSlot(), removed);
+        }
     }
 
     public String getName() {
@@ -129,6 +135,10 @@ public final class LayoutMenuData {
 
     public Map<Character, LayoutMenuItem> getItems() {
         return Map.copyOf(items);
+    }
+
+    public int getItemCount() {
+        return items.size();
     }
 
     public List<String> getRawLayout() {

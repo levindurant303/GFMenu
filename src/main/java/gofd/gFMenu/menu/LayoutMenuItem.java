@@ -22,6 +22,8 @@ public final class LayoutMenuItem {
     private String name = "";
     private List<String> lore = new ArrayList<>();
     private final Map<String, List<String>> actions = new LinkedHashMap<>();
+    /** Immutable snapshot of {@link #actions}; rebuilt lazily after each mutation. */
+    private Map<String, List<String>> actionsSnapshot;
     private int slot;
     private char iconChar = ' ';
     private boolean glowing;
@@ -83,12 +85,13 @@ public final class LayoutMenuItem {
     }
 
     public List<String> getActions(String type) {
-        List<String> matching = actions.get(normalizeActionType(type));
+        Map<String, List<String>> snapshot = getActions();
+        List<String> matching = snapshot.get(normalizeActionType(type));
         if (matching != null) {
-            return List.copyOf(matching);
+            return matching;
         }
-        List<String> all = actions.get("all");
-        return all == null ? List.of() : List.copyOf(all);
+        List<String> all = snapshot.get("all");
+        return all == null ? List.of() : all;
     }
 
     public boolean hasActions(String type) {
@@ -96,18 +99,24 @@ public final class LayoutMenuItem {
     }
 
     public Map<String, List<String>> getActions() {
-        Map<String, List<String>> copy = new LinkedHashMap<>();
-        actions.forEach((type, values) -> copy.put(type, List.copyOf(values)));
-        return Map.copyOf(copy);
+        Map<String, List<String>> snapshot = actionsSnapshot;
+        if (snapshot == null) {
+            Map<String, List<String>> copy = new LinkedHashMap<>(actions.size());
+            actions.forEach((type, values) -> copy.put(type, List.copyOf(values)));
+            snapshot = Map.copyOf(copy);
+            actionsSnapshot = snapshot;
+        }
+        return snapshot;
     }
 
     public void setActions(String type, List<String> values) {
         String normalizedType = normalizeActionType(type);
         if (values == null || values.isEmpty()) {
             actions.remove(normalizedType);
-            return;
+        } else {
+            actions.put(normalizedType, new ArrayList<>(values));
         }
-        actions.put(normalizedType, new ArrayList<>(values));
+        actionsSnapshot = null;
     }
 
     public void addAction(String type, String action) {
@@ -115,6 +124,7 @@ public final class LayoutMenuItem {
             return;
         }
         actions.computeIfAbsent(normalizeActionType(type), ignored -> new ArrayList<>()).add(action);
+        actionsSnapshot = null;
     }
 
     public void removeAction(String type, int index) {
@@ -127,6 +137,7 @@ public final class LayoutMenuItem {
         if (values.isEmpty()) {
             actions.remove(normalizedType);
         }
+        actionsSnapshot = null;
     }
 
     private static String normalizeActionType(String type) {

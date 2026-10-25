@@ -1,5 +1,29 @@
 # Changelog
 
+## R1.2.0 - 2026-08-26
+
+### Added
+
+- Added `/gfmenu info <menu>` diagnostics for format, inventory size, item count, permission, and bound commands.
+- Added `/gfmenu close` and console/admin support for `/gfmenu open <menu> <player>`.
+- Added `%player_uuid%`, `%world%`, `%server%`, and `%online%` action placeholders.
+- Added namespaced Minecraft sound support such as `minecraft:block_note_block_harp-1-1`.
+- Added daily check-in rewards with configurable streak bonuses.
+
+### Fixed
+
+- Synchronized the plugin descriptor and documentation version with the 1.2.0 build.
+- Added a warning when menu files collide after case-insensitive name normalization.
+- Run configured cancel actions when book input times out.
+
+## R1.1.5-hotfix - 2026-08-09
+
+### Changed
+
+- Switched the compile dependency from Spigot API to the standalone Bukkit API.
+- Removed all compile-time dependencies on Spigot and Paper APIs while retaining runtime compatibility with both.
+- Kept the runtime API baseline at Minecraft 1.21 and standardized builds on Java 21.
+
 ## R1.1.3-hotfix - 2026-08-08
 
 ### Added
@@ -16,7 +40,8 @@
 ## R1.1.2 - 2026-08-04
 
 ### Changed
-- Updated the server release version 26.1+
+
+- Updated the server release version 26.1+.
 - Updated the plugin release version to 1.1.2.
 - Maven now compiles with Java 25 `release` semantics.
 

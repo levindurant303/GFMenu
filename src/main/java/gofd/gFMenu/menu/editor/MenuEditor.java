@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -191,17 +192,21 @@ public final class MenuEditor implements Listener {
             return;
         }
 
+        // Extract everything from the event now: Bukkit clears event state as soon
+        // as dispatch finishes, so the deferred task below must not touch the event.
+        Player player = event.getPlayer();
+        List<String> pages = event.getNewBookMeta().getPages();
         transitioningInventoryViews.add(playerId);
         Bukkit.getScheduler().runTask(plugin, () -> {
             try {
-                restoreHeldItem(event.getPlayer(), session);
+                restoreHeldItem(player, session);
                 ItemEditSession itemSession = itemEditSessions.get(playerId);
                 if (itemSession == null || !itemSession.matches(session.menuName(), session.slot())
-                        || !event.getPlayer().isOnline()) {
+                        || !player.isOnline()) {
                     return;
                 }
-                applyBookField(itemSession, session.field(), event.getNewBookMeta().getPages());
-                openItemPanelInventory(event.getPlayer(), itemSession);
+                applyBookField(itemSession, session.field(), pages);
+                openItemPanelInventory(player, itemSession);
             } finally {
                 transitioningInventoryViews.remove(playerId);
             }
@@ -217,6 +222,43 @@ public final class MenuEditor implements Listener {
         itemEditSessions.remove(event.getPlayer().getUniqueId());
         transitioningInventoryViews.remove(event.getPlayer().getUniqueId());
         activeEditors.entrySet().removeIf(entry -> entry.getValue().equals(event.getPlayer().getUniqueId()));
+    }
+
+    /**
+     * Closes every active editor session (called when menus are reloaded). Without this,
+     * a session opened before the reload would keep editing stale data and could overwrite
+     * the freshly loaded menu with an outdated snapshot on the next save.
+     */
+    public void invalidateForReload() {
+        for (Map.Entry<UUID, FieldBookSession> entry : pendingBookEdits.entrySet()) {
+            Player subject = Bukkit.getPlayer(entry.getKey());
+            if (subject != null) {
+                restoreHeldItem(subject, entry.getValue());
+            }
+        }
+
+        Set<UUID> affected = new LinkedHashSet<>(activeEditors.values());
+        affected.addAll(itemEditSessions.keySet());
+        affected.addAll(pendingBookEdits.keySet());
+
+        activeEditors.clear();
+        itemEditSessions.clear();
+        pendingBookEdits.clear();
+        transitioningInventoryViews.clear();
+
+        for (UUID playerId : affected) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player == null || !player.isOnline()) {
+                continue;
+            }
+            transitioningInventoryViews.add(playerId);
+            try {
+                player.closeInventory();
+            } finally {
+                transitioningInventoryViews.remove(playerId);
+            }
+            send(player, "editor.reload_closed");
+        }
     }
 
     public EditResult setTitle(String menuName, String title) {
@@ -634,6 +676,7 @@ public final class MenuEditor implements Listener {
                 || lower.startsWith("message:")
                 || lower.startsWith("chat:")
                 || lower.startsWith("menu:")
+                || lower.startsWith("open:")
                 || lower.startsWith("sound:")
                 || lower.startsWith("catcher:")
                 || lower.startsWith("book:");

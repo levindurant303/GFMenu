@@ -72,6 +72,7 @@ public final class BookInputSession {
             return;
         }
         active = false;
+        actionEngine.executeActions(player, cancelActions);
         player.sendMessage(actionEngine.getPlugin().getLanguageManager().getMessage("book_input_timeout"));
     }
 

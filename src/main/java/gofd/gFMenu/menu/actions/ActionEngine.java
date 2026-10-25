@@ -1,6 +1,7 @@
 package gofd.gFMenu.menu.actions;
 
 import gofd.gFMenu.GFMenu;
+import gofd.gFMenu.checkin.CheckinManager;
 import gofd.gFMenu.menu.LayoutMenuItem;
 import gofd.gFMenu.menu.MenuManager;
 import gofd.gFMenu.menu.actions.actions.BookInputSession;
@@ -171,36 +172,57 @@ public final class ActionEngine {
         }
         String trimmed = normalizeActionAliases(replacePlayerPlaceholders(player, action.trim()));
         String lower = trimmed.toLowerCase(Locale.ROOT);
+        String dispatchKey = dispatchPrefix(lower);
         try {
-            if (lower.equals("close")) {
-                player.closeInventory();
-            } else if (lower.startsWith("command:")) {
-                player.performCommand(stripLeadingSlash(trimmed.substring(8).trim()));
-            } else if (lower.startsWith("console:") || lower.startsWith("op:")) {
-                int prefixLength = lower.startsWith("console:") ? 8 : 3;
-                ConsoleCommandSender console = Bukkit.getConsoleSender();
-                Bukkit.dispatchCommand(console, stripLeadingSlash(trimmed.substring(prefixLength).trim()));
-            } else if (lower.startsWith("tell:") || lower.startsWith("message:")) {
-                int separator = trimmed.indexOf(':');
-                player.sendMessage(LayoutMenuItem.colorize(trimmed.substring(separator + 1).trim()));
-            } else if (lower.startsWith("chat:")) {
-                player.chat(trimmed.substring(5).trim());
-            } else if (lower.startsWith("menu:")) {
-                menuManager.openMenu(player, trimmed.substring(5).trim());
-            } else if (lower.startsWith("sound:")) {
-                playSound(player, trimmed.substring(6).trim());
-            } else if (lower.startsWith("catcher:")) {
-                player.closeInventory();
-                startCatcherSession(player, trimmed);
-            } else if (lower.startsWith("book:")) {
-                player.closeInventory();
-                startBookInput(player, trimmed);
-            } else {
-                plugin.getLogger().warning("Unknown menu action: " + action);
+            switch (dispatchKey) {
+                case "close" -> player.closeInventory();
+                case "command" -> player.performCommand(stripLeadingSlash(trimmed.substring(8).trim()));
+                case "console", "op" -> {
+                    int prefixLength = "console".length();
+                    if (dispatchKey.equals("op")) {
+                        prefixLength = 2;
+                    }
+                    ConsoleCommandSender console = Bukkit.getConsoleSender();
+                    Bukkit.dispatchCommand(console, stripLeadingSlash(trimmed.substring(prefixLength + 1).trim()));
+                }
+                case "tell", "message" -> {
+                    int separator = trimmed.indexOf(':');
+                    player.sendMessage(LayoutMenuItem.colorize(trimmed.substring(separator + 1).trim()));
+                }
+                case "chat" -> player.chat(trimmed.substring(5).trim());
+                case "menu", "open" -> menuManager.openMenu(player, trimmed.substring(5).trim());
+                case "sound" -> playSound(player, trimmed.substring(6).trim());
+                case "catcher" -> {
+                    player.closeInventory();
+                    startCatcherSession(player, trimmed);
+                }
+                case "book" -> {
+                    player.closeInventory();
+                    startBookInput(player, trimmed);
+                }
+                case "checkin" -> plugin.getCheckinManager().checkIn(player);
+                default -> plugin.getLogger().warning("Unknown menu action: " + action);
             }
         } catch (RuntimeException exception) {
             plugin.getLogger().warning("Failed to execute menu action '" + action + "': " + exception.getMessage());
         }
+    }
+
+    /**
+     * Extracts the action type prefix from a lower-cased action string.
+     * Returns the keyword without the colon so callers can use a tight switch,
+     * which the JIT can compile into a tableswitch or lookupswitch with
+     * O(1)-ish branching instead of a long if-else chain.
+     */
+    private static String dispatchPrefix(String lower) {
+        if (lower.equals("close")) {
+            return "close";
+        }
+        int colon = lower.indexOf(':');
+        if (colon <= 0) {
+            return "";
+        }
+        return lower.substring(0, colon);
     }
 
     public void handleItemClick(InventoryClickEvent event, Map<String, List<String>> actions) {
@@ -221,8 +243,26 @@ public final class ActionEngine {
         return plugin;
     }
 
-    private static String replacePlayerPlaceholders(Player player, String value) {
-        return value.replace("%player%", player.getName()).replace("%uuid%", player.getUniqueId().toString());
+    private String replacePlayerPlaceholders(Player player, String value) {
+        if (value.indexOf('%') < 0) {
+            return value;
+        }
+        String result = value.replace("%player%", player.getName())
+                .replace("%uuid%", player.getUniqueId().toString())
+                .replace("%player_uuid%", player.getUniqueId().toString())
+                .replace("%world%", player.getWorld().getName())
+                .replace("%server%", Bukkit.getServer().getName())
+                .replace("%online%", Integer.toString(Bukkit.getOnlinePlayers().size()));
+        if (result.indexOf("checkin_") >= 0) {
+            CheckinManager checkin = plugin.getCheckinManager();
+            if (checkin != null) {
+                UUID id = player.getUniqueId();
+                result = result.replace("%checkin_streak%", Integer.toString(checkin.getStreak(id)))
+                        .replace("%checkin_total%", Integer.toString(checkin.getTotal(id)))
+                        .replace("%checkin_can%", Boolean.toString(checkin.canCheckIn(id)));
+            }
+        }
+        return result;
     }
 
     /** Chinese aliases keep book-authored actions readable without changing the YAML action model. */
@@ -230,25 +270,66 @@ public final class ActionEngine {
         if (action.equals("\u5173\u95ed")) {
             return "close";
         }
-        return replaceActionPrefix(action, "\u63a7\u5236\u53f0\u547d\u4ee4:", "console:")
-                .or(() -> replaceActionPrefix(action, "\u63a7\u5236\u53f0:", "console:"))
-                .or(() -> replaceActionPrefix(action, "\u73a9\u5bb6\u547d\u4ee4:", "command:"))
-                .or(() -> replaceActionPrefix(action, "\u547d\u4ee4:", "command:"))
-                .or(() -> replaceActionPrefix(action, "\u6d88\u606f:", "message:"))
-                .or(() -> replaceActionPrefix(action, "\u63d0\u793a:", "message:"))
-                .or(() -> replaceActionPrefix(action, "\u804a\u5929:", "chat:"))
-                .or(() -> replaceActionPrefix(action, "\u6253\u5f00\u83dc\u5355:", "menu:"))
-                .or(() -> replaceActionPrefix(action, "\u83dc\u5355:", "menu:"))
-                .or(() -> replaceActionPrefix(action, "\u58f0\u97f3:", "sound:"))
-                .or(() -> replaceActionPrefix(action, "\u804a\u5929\u8f93\u5165:", "catcher:"))
-                .or(() -> replaceActionPrefix(action, "\u4e66\u672c:", "book:"))
-                .orElse(action);
+        String result = action;
+        // Single pass over the alias table; plain null-checks avoid the Optional
+        // allocations the previous orElse-chain produced per action execution.
+        result = replaceActionPrefix(result, "\u63a7\u5236\u53f0\u547d\u4ee4:", "console:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u63a7\u5236\u53f0:", "console:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u73a9\u5bb6\u547d\u4ee4:", "command:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u547d\u4ee4:", "command:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u6d88\u606f:", "message:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u63d0\u793a:", "message:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u804a\u5929:", "chat:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u6253\u5f00\u83dc\u5355:", "menu:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u83dc\u5355:", "menu:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u58f0\u97f3:", "sound:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u804a\u5929\u8f93\u5165:", "catcher:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u4e66\u672c:", "book:");
+        if (result != action) {
+            return result;
+        }
+        result = replaceActionPrefix(result, "\u7b7e\u5230:", "checkin:");
+        return result == action ? action : result;
     }
 
-    private static java.util.Optional<String> replaceActionPrefix(String action, String prefix, String replacement) {
+    /** Returns {@code replacement + rest} when {@code action} starts with the (Chinese) prefix, otherwise {@code action}. */
+    private static String replaceActionPrefix(String action, String prefix, String replacement) {
         return action.startsWith(prefix)
-                ? java.util.Optional.of(replacement + action.substring(prefix.length()).trim())
-                : java.util.Optional.empty();
+                ? replacement + action.substring(prefix.length()).trim()
+                : action;
     }
 
     private static String stripLeadingSlash(String command) {
@@ -256,11 +337,16 @@ public final class ActionEngine {
     }
 
     private static void playSound(Player player, String soundData) {
-        String[] parts = soundData.split("-");
+        String[] parts = soundData.split("-", -1);
         if (parts.length == 0 || parts[0].isBlank()) {
             return;
         }
-        Sound sound = Sound.valueOf(parts[0].trim().toUpperCase(Locale.ROOT).replace(':', '_'));
+        String soundName = parts[0].trim();
+        int namespaceSeparator = soundName.indexOf(':');
+        if (namespaceSeparator >= 0) {
+            soundName = soundName.substring(namespaceSeparator + 1);
+        }
+        Sound sound = Sound.valueOf(soundName.toUpperCase(Locale.ROOT));
         float volume = parts.length > 1 ? Float.parseFloat(parts[1].trim()) : 1.0F;
         float pitch = parts.length > 2 ? Float.parseFloat(parts[2].trim()) : 1.0F;
         player.playSound(player.getLocation(), sound, volume, pitch);

@@ -66,6 +66,7 @@ public final class CatcherSession {
             return;
         }
         active = false;
+        actionEngine.executeActions(player, cancelActions);
         player.sendMessage(actionEngine.getPlugin().getLanguageManager().getMessage("catcher_input_timeout"));
     }
 
