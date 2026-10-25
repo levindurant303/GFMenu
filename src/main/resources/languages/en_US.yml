@@ -1,4 +1,9 @@
 no_permission: "&cYou do not have permission to do that."
+plugin:
+  enabled: "GFMenu v{0} enabled!"
+  disabled: "GFMenu disabled!"
+  author: "Author: GOFD QQ:2816958994"
+  current_language: "Current language: {0}"
 player_only: "&cOnly players can use this command."
 player_only_open: "&cOnly players can open a menu."
 menu_not_found: "&cMenu not found or not loaded."
@@ -35,14 +40,16 @@ command:
   config_reload_busy: "&cA reload is already in progress. Please try again later."
   lang_current: "&7Current language: &f{0}"
   lang_supported: "&cSupported languages: zh_CN, en_US"
+  lang_usage: "&cUsage: /gfmenu lang <zh_CN|en_US>"
   lang_changed: "&aLanguage changed to &f{0}"
   edit_player_only: "&cOnly players can edit menus."
   admin_no_permission: "&cYou do not have permission to manage menus."
   help_title: "&6GFMenu commands"
   help_open: "&f/gfmenu open <menu> &7- Open a menu"
-  help_other: "&f/gfmenu list | reload | debug | lang"
+  help_other: "&f/gfmenu list | reload | debug | close"
   help_edit: "&f/gfmenu edit <menu> &7- Open the inventory editor"
   help_info: "&f/gfmenu info <menu> &7- Show menu diagnostics"
+  help_language: "&f/gfmenu lang <zh_CN|en_US> &7- Change the plugin language"
   info_usage: "&cUsage: /gfmenu info <menu>"
   info_header: "&6Menu: &f{0}"
   info_details: "&7Format: &f{0} &7Size: &f{1} &7Items: &f{2} &7Permission: &f{3}"
@@ -161,3 +168,10 @@ checkin_success: "&aChecked in! Current streak: {0} day(s), total: {1}."
 checkin_already: "&cYou already checked in today. Come back tomorrow."
 checkin_streak_award: "&eBonus reward for a {0}-day streak delivered!"
 checkin_failed: "&cFailed to save check-in data. Please try again later."
+
+update:
+  latest: '&aYou are running the latest version.'
+  new_available: '&eNew version {0} available! Current version {1}.'
+  download: '&bDownload: {0}'
+  changelog: '&7Release notes: {0}'
+  failed: '&cUnable to check for updates, please try again later.'

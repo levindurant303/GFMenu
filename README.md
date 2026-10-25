@@ -11,6 +11,8 @@ The server-wide player-facing language can be switched at runtime by an administ
 /gfmenu lang en_US
 ```
 
+Running `/gfmenu lang` shows the current selection and accepted values. Language names are case-insensitive; `zh`/`zh-CN` and `en`/`en-US` are also accepted. The selection is server-wide and saved in `config.yml`.
+
 常用管理命令：
 
 ```text
@@ -24,6 +26,8 @@ The server-wide player-facing language can be switched at runtime by an administ
 这样的命名空间格式。
 
 `config.yml` defaults to `zh_CN`. The selected language changes command feedback, permission errors, editor titles, the book editor, and input-session messages. Existing language files in the plugin data folder can override individual messages; new bundled keys remain available as defaults after an update.
+
+Update checks run asynchronously against the latest Trinity-Plugins/GFMenu release and report in the configured language. Set `update-check: false` in `config.yml` to disable them.
 
 With `zh_CN`, the item settings page contains separate books for `名称`, `描述`, `左键命令`, `右键命令`, and `通用命令`. The selected item decides its material and amount, so a player does not need to type Minecraft material IDs. Chinese action aliases including `控制台命令:`, `玩家命令:`, `消息:`, `打开菜单:`, `书本:`, and `关闭` are accepted as well.
 

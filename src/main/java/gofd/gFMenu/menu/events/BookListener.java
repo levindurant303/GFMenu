@@ -2,6 +2,7 @@ package gofd.gFMenu.menu.events;
 
 import gofd.gFMenu.menu.MenuManager;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerEditBookEvent;
 
@@ -14,7 +15,7 @@ public final class BookListener implements Listener {
         this.menuManager = menuManager;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerEditBook(PlayerEditBookEvent event) {
         if (!menuManager.getActionEngine().hasActiveBookInput(event.getPlayer())) {
             return;

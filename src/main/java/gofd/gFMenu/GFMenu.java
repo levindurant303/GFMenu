@@ -7,6 +7,7 @@ import gofd.gFMenu.menu.editor.MenuEditor;
 import gofd.gFMenu.menu.events.BookListener;
 import gofd.gFMenu.menu.events.ChatListener;
 import gofd.gFMenu.menu.events.MenuListener;
+import gofd.gFMenu.update.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -68,14 +69,18 @@ public final class GFMenu extends JavaPlugin {
                 this, () -> menuManager.getActionEngine().cleanupTimeoutSessions(), 600L, 600L);
 
         // Preserve the original startup banner and author lines.
-        getLogger().info("GFMenu v" + getDescription().getVersion() + " 已启用！");
+        getLogger().info(languageManager.getMessage("plugin.enabled", getDescription().getVersion()));
         getLogger().info("  GGGG   FFFFF M         M");
         getLogger().info(" G       F     MM       MM");
         getLogger().info(" G   GGG FFFFF M  M   M  M");
         getLogger().info(" G    G  F     M   M M   M");
         getLogger().info("  GGGG   F     M    M    M");
-        getLogger().info("作者: GOFD QQ:2816958994");
-        getLogger().info("当前语言: " + languageManager.getCurrentLanguage());
+        getLogger().info(languageManager.getMessage("plugin.author"));
+        getLogger().info(languageManager.getMessage("plugin.current_language", languageManager.getCurrentLanguage()));
+
+        if (getConfig().getBoolean("update-check", true)) {
+            Bukkit.getScheduler().runTaskAsynchronously(this, this::checkForUpdates);
+        }
     }
 
     @Override
@@ -88,13 +93,17 @@ public final class GFMenu extends JavaPlugin {
         }
 
         // Preserve the original shutdown banner and author lines.
-        getLogger().info("GFMenu 已禁用！");
+        getLogger().info(languageManager == null
+                ? "GFMenu 已禁用！"
+                : languageManager.getMessage("plugin.disabled"));
         getLogger().info("  GGGG   FFFFF M         M");
         getLogger().info(" G       F     MM       MM");
         getLogger().info(" G   GGG FFFFF M  M   M  M");
         getLogger().info(" G    G  F     M   M M   M");
         getLogger().info("  GGGG   F     M    M    M");
-        getLogger().info("作者: GOFD QQ:2816958994");
+        getLogger().info(languageManager == null
+                ? "作者: GOFD QQ:2816958994"
+                : languageManager.getMessage("plugin.author"));
         instance = null;
     }
 
@@ -119,6 +128,30 @@ public final class GFMenu extends JavaPlugin {
             return false;
         }
         return menuManager.reloadMenusAsync(onMenusReloaded);
+    }
+
+    private void checkForUpdates() {
+        UpdateChecker.Result result = UpdateChecker.check(getDescription().getVersion());
+        Bukkit.getScheduler().runTask(this, () -> reportUpdateResult(result));
+    }
+
+    private void reportUpdateResult(UpdateChecker.Result result) {
+        if (result.failed()) {
+            getLogger().warning(languageManager.getMessage("update.failed"));
+            return;
+        }
+        if (!result.updateAvailable()) {
+            getLogger().info(languageManager.getMessage("update.latest"));
+            return;
+        }
+        getLogger().warning(languageManager.getMessage("update.new_available",
+                result.version(), getDescription().getVersion()));
+        if (result.downloadUrl() != null && !result.downloadUrl().isBlank()) {
+            getLogger().warning(languageManager.getMessage("update.download", result.downloadUrl()));
+        }
+        if (result.changelog() != null && !result.changelog().isBlank()) {
+            getLogger().info(languageManager.getMessage("update.changelog", result.changelog()));
+        }
     }
 
     public String getGlobalConfigStatus() {

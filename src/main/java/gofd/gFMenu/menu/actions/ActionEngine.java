@@ -118,7 +118,7 @@ public final class ActionEngine {
     public void finishBookInput(Player player, List<String> pages) {
         BookInputSession session = activeBookInputs.remove(player.getUniqueId());
         if (session != null) {
-            session.handleInput(String.join(System.lineSeparator(), pages));
+            session.handleInput(String.join("\n", pages == null ? List.of() : pages));
         }
     }
 

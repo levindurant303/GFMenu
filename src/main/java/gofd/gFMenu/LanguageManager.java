@@ -59,7 +59,11 @@ public final class LanguageManager {
     }
 
     public void setLanguage(String language) {
-        currentLanguage = normalizeLanguage(language);
+        String normalizedLanguage = canonicalLanguage(language);
+        if (normalizedLanguage == null) {
+            throw new IllegalArgumentException("Unsupported language: " + language);
+        }
+        currentLanguage = normalizedLanguage;
         plugin.getConfig().set("language", currentLanguage);
         plugin.saveConfig();
         reload();
@@ -95,6 +99,18 @@ public final class LanguageManager {
     }
 
     private static String normalizeLanguage(String language) {
-        return "zh_cn".equalsIgnoreCase(language) ? "zh_CN" : FALLBACK_LANGUAGE;
+        String normalizedLanguage = canonicalLanguage(language);
+        return normalizedLanguage == null ? FALLBACK_LANGUAGE : normalizedLanguage;
+    }
+
+    private static String canonicalLanguage(String language) {
+        if (language == null) {
+            return null;
+        }
+        return switch (language.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "zh", "zh_cn", "zh-cn" -> "zh_CN";
+            case "en", "en_us", "en-us" -> "en_US";
+            default -> null;
+        };
     }
 }

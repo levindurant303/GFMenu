@@ -1,6 +1,6 @@
 # Changelog
 
-## R1.2.0 - 2026-08-26
+## R1.2.0 - 2026-10-25
 
 ### Added
 
@@ -9,12 +9,16 @@
 - Added `%player_uuid%`, `%world%`, `%server%`, and `%online%` action placeholders.
 - Added namespaced Minecraft sound support such as `minecraft:block_note_block_harp-1-1`.
 - Added daily check-in rewards with configurable streak bonuses.
+- Added localized startup/shutdown banners and clear language-switch help with tab completion.
+- Added an asynchronous latest-release check, configurable with `update-check`.
 
 ### Fixed
 
 - Synchronized the plugin descriptor and documentation version with the 1.2.0 build.
 - Added a warning when menu files collide after case-insensitive name normalization.
 - Run configured cancel actions when book input times out.
+- Fixed menu-editor book input so books open directly and save when the player clicks Done.
+- Preserved line breaks consistently when processing multi-page book input.
 
 ## R1.1.5-hotfix - 2026-08-09
 

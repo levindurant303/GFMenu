@@ -1,4 +1,9 @@
 no_permission: "&c你没有权限执行此操作。"
+plugin:
+  enabled: "GFMenu v{0} 已启用！"
+  disabled: "GFMenu 已禁用！"
+  author: "作者: GOFD QQ:2816958994"
+  current_language: "当前语言: {0}"
 player_only: "&c只有玩家可以使用此命令。"
 player_only_open: "&c只有玩家可以打开菜单。"
 menu_not_found: "&c菜单不存在或尚未加载。"
@@ -37,6 +42,7 @@ command:
   config_reload_busy: "&c已有一个重载正在进行中，请稍后再试。"
   lang_current: "&7当前语言：&f{0}"
   lang_supported: "&c支持的语言：zh_CN、en_US"
+  lang_usage: "&c用法：/gfmenu lang <zh_CN|en_US>"
   lang_changed: "&a语言已切换为 &f{0}"
   edit_player_only: "&c只有玩家可以编辑菜单。"
   admin_no_permission: "&c你没有管理菜单的权限。"
@@ -45,6 +51,7 @@ command:
   help_other: "&f/gfmenu list | reload | debug | lang | close"
   help_edit: "&f/gfmenu edit <菜单名> &7- 打开背包编辑器"
   help_info: "&f/gfmenu info <菜单名> &7- 查看菜单诊断信息"
+  help_language: "&f/gfmenu lang <zh_CN|en_US> &7- 切换插件语言"
   info_usage: "&c用法：/gfmenu info <菜单名>"
   info_header: "&6菜单：&f{0}"
   info_details: "&7格式：&f{0} &7大小：&f{1} &7物品：&f{2} &7权限：&f{3}"
@@ -161,3 +168,10 @@ checkin_success: "&a签到成功！当前连签 {0} 天，累计签到 {1} 次�
 checkin_already: "&c你今天已经签到过了，明天再来吧。"
 checkin_streak_award: "&e连签 {0} 天额外奖励已发放！"
 checkin_failed: "&c签到数据保存失败，请稍后重试或联系管理员。"
+
+update:
+  latest: '&a当前已是最新版本。'
+  new_available: '&e发现新版本 {0}，当前版本 {1}。'
+  download: '&b下载地址：{0}'
+  changelog: '&7更新说明：{0}'
+  failed: '&c检查更新失败，请稍后重试。'

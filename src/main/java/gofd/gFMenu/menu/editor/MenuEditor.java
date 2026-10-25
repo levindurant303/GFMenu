@@ -12,6 +12,7 @@ import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -184,7 +185,7 @@ public final class MenuEditor implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBookEdit(PlayerEditBookEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
         FieldBookSession session = pendingBookEdits.remove(playerId);
@@ -493,7 +494,9 @@ public final class MenuEditor implements Listener {
             book.setItemMeta(bookMeta);
         }
         send(player, "editor.book_input_tip");
+        player.closeInventory();
         player.getInventory().setItem(heldSlot, book);
+        player.updateInventory();
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (pendingBookEdits.get(player.getUniqueId()) != session || !player.isOnline()) {
                 return;

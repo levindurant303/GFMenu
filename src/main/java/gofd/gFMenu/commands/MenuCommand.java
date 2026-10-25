@@ -179,16 +179,21 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         if (!requireAdmin(sender)) {
             return;
         }
-        if (args.length < 2) {
+        if (args.length == 1) {
             sendKey(sender, "command.lang_current", plugin.getLanguageManager().getCurrentLanguage());
+            sendKey(sender, "command.lang_usage");
             return;
         }
-        String language = args[1].toLowerCase(Locale.ROOT);
-        if (!language.equals("zh_cn") && !language.equals("en_us")) {
+        if (args.length != 2) {
+            sendKey(sender, "command.lang_usage");
+            return;
+        }
+        try {
+            plugin.getLanguageManager().setLanguage(args[1]);
+        } catch (IllegalArgumentException exception) {
             sendKey(sender, "command.lang_supported");
             return;
         }
-        plugin.getLanguageManager().setLanguage(language);
         sendKey(sender, "command.lang_changed", plugin.getLanguageManager().getCurrentLanguage());
     }
 
@@ -307,6 +312,7 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         sendKey(sender, "command.help_other");
         sendKey(sender, "command.help_edit");
         sendKey(sender, "command.help_info");
+        sendKey(sender, "command.help_language");
     }
 
     private void sendEditHelp(CommandSender sender) {
@@ -378,6 +384,9 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(args[0], List.of("open", "close", "info", "list", "reload", "debug", "config", "lang", "edit"));
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("lang")) {
+            return filter(args[1], List.of("zh_CN", "en_US"));
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("open")
                 || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info"))) {

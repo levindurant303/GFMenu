@@ -6,3 +6,4 @@ layout:
   default-center: true
   preserve-spaces: true
   enable-reports: false
+update-check: true
