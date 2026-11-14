@@ -1,4 +1,4 @@
-# GFMenu R1.3.0
+# GFMenu
 
 [![SpigotMC](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/spigot_vector.svg)](https://www.spigotmc.org/resources/gfmenu.137753/)
 
@@ -6,11 +6,7 @@
 
 [![GitHub](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/github_vector.svg)](https://github.com/levindurant303/GFMenu)
 
-[English](README.md) | [Chinese](README.zh-CN.md)
-
 GFMenu is a GUI menu plugin for Bukkit, Spigot, and Paper 1.21+ servers. It reads TrMenu-style and DeluxeMenus-style YAML, provides an in-game menu editor with writable-book input, and includes practical administration commands.
-
-> R1.2.5 has been withdrawn. Use R1.3.0 instead.
 
 ## Features
 
@@ -30,7 +26,7 @@ Kether scripts, JavaScript-driven or otherwise dynamic slots, and conditional ic
 ## Installation
 
 1. Use Java 21 and a Bukkit, Spigot, or Paper 1.21+ server.
-2. Place `GFMenu-R1.3.0.jar` in the server's `plugins` directory.
+2. Place `GFMenu.jar` in the server's `plugins` directory.
 3. Start or restart the server. Menu files are loaded from `plugins/GFMenu/menus/`.
 4. Grant administrators the `gfmenu.admin` permission (default: operators).
 

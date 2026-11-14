@@ -6,11 +6,7 @@
 
 [![GitHub](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/github_vector.svg)](https://github.com/levindurant303/GFMenu)
 
-[英文版](README.md) | 简体中文
-
 GFMenu 是面向 Bukkit、Spigot 和 Paper 1.21 及以上服务器的图形菜单插件。它可以读取 TrMenu 风格和 DeluxeMenus 风格的 YAML 配置，提供带书本输入的游戏内菜单编辑器，并包含方便服主使用的管理命令。
-
-> R1.2.5 已作废，请使用 R1.3.0。
 
 ## 功能特性
 
@@ -30,7 +26,7 @@ GFMenu 不会解析 Kether 脚本、JavaScript 驱动或其他动态槽位，也
 ## 安装
 
 1. 服务器使用 Java 21，以及 Bukkit、Spigot 或 Paper 1.21 及以上版本。
-2. 将 `GFMenu-R1.3.0.jar` 放入服务器的 `plugins` 目录。
+2. 将 `GFMenu.jar` 放入服务器的 `plugins` 目录。
 3. 启动或重启服务器。菜单文件从 `plugins/GFMenu/menus/` 加载。
 4. 为管理员授予 `gfmenu.admin` 权限（默认仅管理员组，即 OP）。
 
