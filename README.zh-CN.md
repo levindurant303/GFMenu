@@ -1,5 +1,11 @@
 # GFMenu R1.3.0
 
+[![SpigotMC](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/spigot_vector.svg)](https://www.spigotmc.org/resources/gfmenu.137753/)
+
+[![Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg)](https://modrinth.com/plugin/gfmenu)
+
+[![GitHub](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/github_vector.svg)](https://github.com/levindurant303/GFMenu)
+
 [英文版](README.md) | 简体中文
 
 GFMenu 是面向 Bukkit、Spigot 和 Paper 1.21 及以上服务器的图形菜单插件。它可以读取 TrMenu 风格和 DeluxeMenus 风格的 YAML 配置，提供带书本输入的游戏内菜单编辑器，并包含方便服主使用的管理命令。
@@ -30,20 +36,20 @@ GFMenu 不会解析 Kether 脚本、JavaScript 驱动或其他动态槽位，也
 
 ## 命令
 
-| 命令 | 说明 |
-| --- | --- |
-| `/gfmenu help` | 显示可用命令。 |
-| `/gfmenu list` | 列出已加载的菜单。 |
-| `/gfmenu info <menu>` | 查看菜单格式、大小、物品数量和权限。 |
-| `/gfmenu open <menu> <player>` | 为在线玩家打开菜单。 |
-| `/gfmenu close` | 关闭当前打开的菜单。 |
-| `/gfmenu lang [zh_CN|en_US]` | 查看或切换全服提示语言。 |
-| `/gfmenu checkin [status]` | 领取今日奖励或查看签到状态。 |
-| `/gfmenu update` | 检查主 GitHub 仓库是否发布了新版本。 |
-| `/gfmenu backup` | 将菜单 YAML 文件打包成带时间戳的 ZIP 备份。 |
-| `/gfmenu validate [menu]` | 检查菜单中的常见配置问题。 |
-| `/gfmenu reload` | 重新加载菜单和插件配置。 |
-| `/gfmenu edit <menu>` | 打开游戏内菜单编辑器。 |
+| 命令                             | 说明                         |
+|--------------------------------|----------------------------|
+| `/gfmenu help`                 | 显示可用命令。                    |
+| `/gfmenu list`                 | 列出已加载的菜单。                  |
+| `/gfmenu info <menu>`          | 查看菜单格式、大小、物品数量和权限。         |
+| `/gfmenu open <menu> <player>` | 为在线玩家打开菜单。                 |
+| `/gfmenu close`                | 关闭当前打开的菜单。                 |
+| `/gfmenu lang [zh_CN/en_US]`   | 查看或切换全服提示语言。 |
+| `/gfmenu checkin [status]`     | 领取今日奖励或查看签到状态。             |
+| `/gfmenu update`               | 检查主 GitHub 仓库是否发布了新版本。     |
+| `/gfmenu backup`               | 将菜单 YAML 文件打包成带时间戳的 ZIP 备份。 |
+| `/gfmenu validate [menu]`      | 检查菜单中的常见配置问题。              |
+| `/gfmenu reload`               | 重新加载菜单和插件配置。               |
+| `/gfmenu edit <menu>`          | 打开游戏内菜单编辑器。                |
 
 菜单编辑、重载、备份、验证和更新检查命令需要 `gfmenu.admin` 权限，除非服务器另行授权。`/gfmenu info` 使用 `gfmenu.info`（默认仅管理员组）。签到使用 `gfmenu.checkin`（默认所有玩家可用）。
 

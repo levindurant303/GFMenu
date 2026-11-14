@@ -1,5 +1,11 @@
 # GFMenu R1.3.0
 
+[![SpigotMC](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/spigot_vector.svg)](https://www.spigotmc.org/resources/gfmenu.137753/)
+
+[![Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg)](https://modrinth.com/plugin/gfmenu)
+
+[![GitHub](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/github_vector.svg)](https://github.com/levindurant303/GFMenu)
+
 [English](README.md) | [Chinese](README.zh-CN.md)
 
 GFMenu is a GUI menu plugin for Bukkit, Spigot, and Paper 1.21+ servers. It reads TrMenu-style and DeluxeMenus-style YAML, provides an in-game menu editor with writable-book input, and includes practical administration commands.
