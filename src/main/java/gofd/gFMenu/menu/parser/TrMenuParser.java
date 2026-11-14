@@ -9,10 +9,22 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class TrMenuParser implements MenuParser {
+
+    private final boolean defaultCenterEnabled;
+
+    public TrMenuParser() {
+        this(false);
+    }
+
+    public TrMenuParser(boolean defaultCenterEnabled) {
+        this.defaultCenterEnabled = defaultCenterEnabled;
+    }
 
     @Override
     public MenuFormat getFormat() {
@@ -26,12 +38,31 @@ public final class TrMenuParser implements MenuParser {
 
         List<String> layout = config.getStringList(config.contains("layout") ? "layout" : "Layout");
         menu.setRawLayout(layout);
-        boolean centerEnabled = config.getBoolean("Settings.center", false);
+        boolean centerEnabled = config.getBoolean("Settings.center", defaultCenterEnabled);
         menu.setCenterEnabled(centerEnabled);
-        menu.setLayoutSlots(TrMenuLayoutParser.parseLayout(layout, centerEnabled));
-        menu.setMenuSize(TrMenuLayoutParser.calculateInventorySize(layout));
-
         ConfigurationSection icons = config.getConfigurationSection("Icons");
+        Map<Character, List<Integer>> positions = new LinkedHashMap<>(
+                TrMenuLayoutParser.parseLayoutPositions(layout, centerEnabled));
+        if (icons != null) {
+            for (String iconKey : icons.getKeys(false)) {
+                if (iconKey.length() != 1) {
+                    continue;
+                }
+                ConfigurationSection iconConfig = icons.getConfigurationSection(iconKey);
+                if (iconConfig == null || !iconConfig.contains("slots")) {
+                    continue;
+                }
+                List<Integer> explicitSlots = parseSlots(iconConfig.get("slots"));
+                if (!explicitSlots.isEmpty()) {
+                    positions.put(iconKey.charAt(0), explicitSlots);
+                }
+            }
+        }
+        menu.setLayoutPositions(positions);
+        int highestSlot = positions.values().stream().flatMap(List::stream).mapToInt(Integer::intValue).max().orElse(-1);
+        int layoutSize = TrMenuLayoutParser.calculateInventorySize(layout);
+        int requiredSize = highestSlot < 0 ? layoutSize : Math.max(layoutSize, ((highestSlot / 9) + 1) * 9);
+        menu.setMenuSize(Math.max(9, Math.min(54, requiredSize)));
         if (icons != null) {
             parseIcons(menu, icons);
         }
@@ -43,20 +74,75 @@ public final class TrMenuParser implements MenuParser {
     }
 
     private void parseIcons(LayoutMenuData menu, ConfigurationSection icons) {
-        Map<Character, Integer> slots = menu.getLayoutSlots();
+        Map<Character, List<Integer>> slots = menu.getLayoutPositions();
         for (String iconKey : icons.getKeys(false)) {
             if (iconKey.length() != 1) {
                 continue;
             }
             char iconChar = iconKey.charAt(0);
-            Integer slot = slots.get(iconChar);
+            List<Integer> iconSlots = slots.get(iconChar);
             ConfigurationSection iconConfig = icons.getConfigurationSection(iconKey);
-            if (slot == null || iconConfig == null) {
+            if (iconSlots == null || iconSlots.isEmpty() || iconConfig == null) {
                 continue;
             }
 
-            LayoutMenuItem item = parseItem(iconChar, slot, iconConfig);
+            LayoutMenuItem item = parseItem(iconChar, iconSlots.get(0), iconConfig);
             menu.addItem(iconChar, item);
+        }
+    }
+
+    private static List<Integer> parseSlots(Object configured) {
+        Set<Integer> slots = new LinkedHashSet<>();
+        collectSlots(configured, slots, true);
+        return List.copyOf(slots);
+    }
+
+    private static void collectSlots(Object configured, Set<Integer> slots, boolean allowNested) {
+        if (configured instanceof Number number) {
+            addSlot(number.intValue(), slots);
+            return;
+        }
+        if (configured instanceof String text) {
+            for (String token : text.split(",")) {
+                String value = token.trim();
+                int separator = value.indexOf('-');
+                if (separator > 0 && separator < value.length() - 1) {
+                    try {
+                        int start = Integer.parseInt(value.substring(0, separator).trim());
+                        int end = Integer.parseInt(value.substring(separator + 1).trim());
+                        int firstSlot = Math.max(0, Math.min(start, end));
+                        int lastSlot = Math.min(53, Math.max(start, end));
+                        for (int slot = firstSlot; slot <= lastSlot; slot++) {
+                            addSlot(slot, slots);
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                } else {
+                    try {
+                        addSlot(Integer.parseInt(value), slots);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+            return;
+        }
+        if (configured instanceof List<?> values) {
+            for (Object value : values) {
+                if (value instanceof List<?> nested) {
+                    if (allowNested) {
+                        collectSlots(nested, slots, false);
+                        break;
+                    }
+                } else {
+                    collectSlots(value, slots, false);
+                }
+            }
+        }
+    }
+
+    private static void addSlot(int slot, Set<Integer> slots) {
+        if (slot >= 0 && slot < 54) {
+            slots.add(slot);
         }
     }
 
@@ -113,6 +199,10 @@ public final class TrMenuParser implements MenuParser {
         for (Map.Entry<String, Object> entry : sectionValues(configured).entrySet()) {
             Map<String, Object> catcher = sectionValues(entry.getValue());
             StringBuilder action = new StringBuilder("catcher:").append(entry.getKey());
+            Object type = catcher.get("type");
+            if (type != null && !String.valueOf(type).isBlank()) {
+                action.append("|type=").append(type);
+            }
             appendSegments(action, "start", parseActionValues(catcher.get("start")));
             appendSegments(action, "cancel", parseActionValues(catcher.get("cancel")));
             appendSegments(action, "end", extractEndActions(catcher.get("end")));

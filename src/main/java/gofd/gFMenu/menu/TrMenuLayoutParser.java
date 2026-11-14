@@ -1,10 +1,11 @@
 package gofd.gFMenu.menu;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Parser for TrMenu's character-based layout. Spaces are real slot placeholders. */
+/** Parses TrMenu character layouts while retaining repeated icon positions. */
 public final class TrMenuLayoutParser {
 
     private TrMenuLayoutParser() {
@@ -12,8 +13,18 @@ public final class TrMenuLayoutParser {
 
     public static Map<Character, Integer> parseLayout(List<String> layoutRows, boolean centerEnabled) {
         Map<Character, Integer> slots = new LinkedHashMap<>();
+        parseLayoutPositions(layoutRows, centerEnabled).forEach((icon, positions) -> {
+            if (!positions.isEmpty()) {
+                slots.put(icon, positions.get(0));
+            }
+        });
+        return slots;
+    }
+
+    public static Map<Character, List<Integer>> parseLayoutPositions(List<String> layoutRows, boolean centerEnabled) {
+        Map<Character, List<Integer>> positions = new LinkedHashMap<>();
         if (layoutRows == null) {
-            return slots;
+            return positions;
         }
 
         int rowCount = Math.min(layoutRows.size(), 6);
@@ -32,11 +43,13 @@ public final class TrMenuLayoutParser {
             for (int column = 0; column < visibleLength; column++) {
                 char icon = row.charAt(column);
                 if (icon != ' ') {
-                    slots.put(icon, rowIndex * 9 + startColumn + column);
+                    positions.computeIfAbsent(icon, ignored -> new ArrayList<>())
+                            .add(rowIndex * 9 + startColumn + column);
                 }
             }
         }
-        return slots;
+        positions.replaceAll((icon, iconPositions) -> List.copyOf(iconPositions));
+        return positions;
     }
 
     public static String cleanRowString(String row) {

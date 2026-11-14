@@ -9,11 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Queries the latest published Trinity release; call from an asynchronous task. */
+/** Queries the latest published main-repository release; call from an asynchronous task. */
 public final class UpdateChecker {
     private static final String RELEASE_API =
-            "https://api.github.com/repos/Trinity-Plugins/GFMenu/releases/latest";
-    private static final String RELEASE_PAGE = "https://github.com/Trinity-Plugins/GFMenu/releases";
+            "https://api.github.com/repos/levindurant303/GFMenu/releases/latest";
+    private static final String RELEASE_PAGE = "https://github.com/levindurant303/GFMenu/releases";
     private static final int MAX_RESPONSE_CHARS = 1_000_000;
     private static final int MAX_CHANGELOG_CHARS = 1_000;
 

@@ -11,6 +11,7 @@ import org.bukkit.Sound;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.ClickType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -227,12 +228,38 @@ public final class ActionEngine {
 
     public void handleItemClick(InventoryClickEvent event, Map<String, List<String>> actions) {
         Player player = (Player) event.getWhoClicked();
-        String type = event.isLeftClick() ? "left" : event.isRightClick() ? "right" : "all";
-        List<String> selected = actions.get(type);
-        if (selected == null || selected.isEmpty()) {
-            selected = actions.get("all");
+        executeActions(player, actionsForClick(event.getClick(), actions));
+    }
+
+    static List<String> actionsForClick(ClickType click, Map<String, List<String>> actions) {
+        List<String> candidates = switch (click) {
+            case LEFT -> List.of("left");
+            case RIGHT -> List.of("right");
+            case SHIFT_LEFT -> List.of("shift_left", "shift-left", "left_shift", "left");
+            case SHIFT_RIGHT -> List.of("shift_right", "shift-right", "right_shift", "right");
+            case MIDDLE -> List.of("middle", "middle_click");
+            case DROP -> List.of("drop", "drop_key");
+            case CONTROL_DROP -> List.of("control_drop", "control-drop", "ctrl_drop");
+            case DOUBLE_CLICK -> List.of("double", "double_click", "doubleclick");
+            case SWAP_OFFHAND -> List.of("swap_offhand", "swap-offhand", "offhand");
+            case NUMBER_KEY -> List.of("number_key", "number-key", "hotbar");
+            default -> List.of();
+        };
+        for (String candidate : candidates) {
+            for (Map.Entry<String, List<String>> entry : actions.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase(candidate) && !entry.getValue().isEmpty()) {
+                    return entry.getValue();
+                }
+            }
         }
-        executeActions(player, selected);
+        if (click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT) {
+            String baseType = click == ClickType.SHIFT_LEFT ? "left" : "right";
+            List<String> baseActions = actions.get(baseType);
+            if (baseActions != null && !baseActions.isEmpty()) {
+                return baseActions;
+            }
+        }
+        return actions.getOrDefault("all", List.of());
     }
 
     public void handleItemClick(InventoryClickEvent event, int ignoredSlot, Map<String, List<String>> actions) {
@@ -267,6 +294,10 @@ public final class ActionEngine {
 
     /** Chinese aliases keep book-authored actions readable without changing the YAML action model. */
     public static String normalizeActionAliases(String action) {
+        String bracketAction = normalizeBracketAction(action);
+        if (bracketAction != null) {
+            return bracketAction;
+        }
         if (action.equals("\u5173\u95ed")) {
             return "close";
         }
@@ -323,6 +354,30 @@ public final class ActionEngine {
         }
         result = replaceActionPrefix(result, "\u7b7e\u5230:", "checkin:");
         return result == action ? action : result;
+    }
+
+    private static String normalizeBracketAction(String action) {
+        String trimmed = action.trim();
+        if (!trimmed.startsWith("[")) {
+            return null;
+        }
+        int end = trimmed.indexOf(']');
+        if (end < 2) {
+            return null;
+        }
+        String type = trimmed.substring(1, end).trim().toLowerCase(Locale.ROOT);
+        String value = trimmed.substring(end + 1).trim();
+        return switch (type) {
+            case "player" -> "command: " + value;
+            case "console", "op" -> "console: " + value;
+            case "message" -> "message: " + value;
+            case "tell" -> "tell: " + value;
+            case "chat" -> "chat: " + value;
+            case "open", "menu" -> "menu: " + value;
+            case "sound" -> "sound: " + value;
+            case "close" -> "close";
+            default -> null;
+        };
     }
 
     /** Returns {@code replacement + rest} when {@code action} starts with the (Chinese) prefix, otherwise {@code action}. */

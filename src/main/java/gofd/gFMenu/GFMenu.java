@@ -9,10 +9,12 @@ import gofd.gFMenu.menu.events.ChatListener;
 import gofd.gFMenu.menu.events.MenuListener;
 import gofd.gFMenu.update.UpdateChecker;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GFMenu extends JavaPlugin {
 
@@ -21,6 +23,7 @@ public final class GFMenu extends JavaPlugin {
     private LanguageManager languageManager;
     private CheckinManager checkinManager;
     private int cleanupTaskId = -1;
+    private final AtomicBoolean updateCheckInFlight = new AtomicBoolean();
 
     public static GFMenu getInstance() {
         return instance;
@@ -79,7 +82,7 @@ public final class GFMenu extends JavaPlugin {
         getLogger().info(languageManager.getMessage("plugin.current_language", languageManager.getCurrentLanguage()));
 
         if (getConfig().getBoolean("update-check", true)) {
-            Bukkit.getScheduler().runTaskAsynchronously(this, this::checkForUpdates);
+            checkForUpdates(null);
         }
     }
 
@@ -130,27 +133,57 @@ public final class GFMenu extends JavaPlugin {
         return menuManager.reloadMenusAsync(onMenusReloaded);
     }
 
-    private void checkForUpdates() {
-        UpdateChecker.Result result = UpdateChecker.check(getDescription().getVersion());
-        Bukkit.getScheduler().runTask(this, () -> reportUpdateResult(result));
+    /** Starts a non-blocking update check; a non-null requester receives the result in-game. */
+    public boolean checkForUpdates(CommandSender requester) {
+        if (!updateCheckInFlight.compareAndSet(false, true)) {
+            if (requester != null) {
+                requester.sendMessage(languageManager.getMessage("update.busy"));
+            }
+            return false;
+        }
+        if (requester != null) {
+            requester.sendMessage(languageManager.getMessage("update.checking"));
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            UpdateChecker.Result result = UpdateChecker.check(getDescription().getVersion());
+            if (!isEnabled()) {
+                updateCheckInFlight.set(false);
+                return;
+            }
+            Bukkit.getScheduler().runTask(this, () -> {
+                updateCheckInFlight.set(false);
+                reportUpdateResult(result, requester);
+            });
+        });
+        return true;
     }
 
-    private void reportUpdateResult(UpdateChecker.Result result) {
+    private void reportUpdateResult(UpdateChecker.Result result, CommandSender requester) {
         if (result.failed()) {
-            getLogger().warning(languageManager.getMessage("update.failed"));
+            reportUpdateMessage(requester, "update.failed", Level.WARNING);
             return;
         }
         if (!result.updateAvailable()) {
-            getLogger().info(languageManager.getMessage("update.latest"));
+            reportUpdateMessage(requester, "update.latest", Level.INFO);
             return;
         }
-        getLogger().warning(languageManager.getMessage("update.new_available",
-                result.version(), getDescription().getVersion()));
+        reportUpdateMessage(requester, "update.new_available", Level.WARNING,
+                result.version(), getDescription().getVersion());
         if (result.downloadUrl() != null && !result.downloadUrl().isBlank()) {
-            getLogger().warning(languageManager.getMessage("update.download", result.downloadUrl()));
+            reportUpdateMessage(requester, "update.download", Level.WARNING, result.downloadUrl());
         }
         if (result.changelog() != null && !result.changelog().isBlank()) {
-            getLogger().info(languageManager.getMessage("update.changelog", result.changelog()));
+            reportUpdateMessage(requester, "update.changelog", Level.INFO, result.changelog());
+        }
+    }
+
+    private void reportUpdateMessage(CommandSender requester, String key, Level level, Object... arguments) {
+        String message = languageManager.getMessage(key, arguments);
+        if (requester == null) {
+            getLogger().log(level, message);
+        } else {
+            requester.sendMessage(message);
         }
     }
 

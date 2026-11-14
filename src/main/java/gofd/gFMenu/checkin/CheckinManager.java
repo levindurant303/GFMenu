@@ -84,6 +84,11 @@ public final class CheckinManager {
         return cache.computeIfAbsent(playerId, this::load).getTotal();
     }
 
+    /** Last successful check-in date, or {@code null} for a player with no check-in history. */
+    public LocalDate getLastCheckin(UUID playerId) {
+        return cache.computeIfAbsent(playerId, this::load).getLastCheckin();
+    }
+
     /** Placeholder support: whether the player can still check in today. */
     public boolean canCheckIn(UUID playerId) {
         return cache.computeIfAbsent(playerId, this::load).canCheckIn(LocalDate.now(clock));

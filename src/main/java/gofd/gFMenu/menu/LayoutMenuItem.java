@@ -141,7 +141,18 @@ public final class LayoutMenuItem {
     }
 
     private static String normalizeActionType(String type) {
-        return type == null || type.isBlank() ? "all" : type.toLowerCase(Locale.ROOT);
+        if (type == null || type.isBlank()) {
+            return "all";
+        }
+        String normalized = type.toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
+            case "left_shift", "shiftleft" -> "shift_left";
+            case "right_shift", "shiftright" -> "shift_right";
+            case "ctrl_drop" -> "control_drop";
+            case "offhand" -> "swap_offhand";
+            case "doubleclick" -> "double_click";
+            default -> normalized;
+        };
     }
 
     public static String colorize(String value) {

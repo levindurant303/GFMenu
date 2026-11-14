@@ -7,7 +7,7 @@
 
     <groupId>gofd.gFMenu</groupId>
     <artifactId>GFMenu</artifactId>
-    <version>R1.2.0</version>
+    <version>R1.3.0</version>
     <packaging>jar</packaging>
 
     <properties>

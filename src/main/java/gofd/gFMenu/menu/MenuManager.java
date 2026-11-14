@@ -16,11 +16,20 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public final class MenuManager {
 
@@ -33,6 +42,7 @@ public final class MenuManager {
     private final ActionEngine actionEngine;
     /** Guards against overlapping asynchronous reloads. */
     private final AtomicBoolean asyncReloadInFlight = new AtomicBoolean();
+    private final AtomicBoolean backupInFlight = new AtomicBoolean();
     /** Notified on the main thread right before reloaded data is swapped in (used to close editor sessions). */
     private Runnable reloadListener;
     private File menusFolder;
@@ -42,9 +52,9 @@ public final class MenuManager {
 
     public MenuManager(GFMenu plugin) {
         this.plugin = plugin;
-        parsers.put(MenuFormat.TRMENU, new TrMenuParser());
-        parsers.put(MenuFormat.DELUXE, new DeluxeMenuParser());
         loadGlobalConfig();
+        parsers.put(MenuFormat.TRMENU, new TrMenuParser(globalCenterEnabled));
+        parsers.put(MenuFormat.DELUXE, new DeluxeMenuParser());
         commandRegistry = new CommandRegistry(plugin, this);
         actionEngine = new ActionEngine(plugin, this);
     }
@@ -139,6 +149,126 @@ public final class MenuManager {
     /** {@code true} while an asynchronous menu reload is still in progress. */
     public boolean isReloadInFlight() {
         return asyncReloadInFlight.get();
+    }
+
+    public boolean createMenuBackup(BiConsumer<File, IOException> onComplete) {
+        if (!backupInFlight.compareAndSet(false, true)) {
+            return false;
+        }
+        Map<File, byte[]> snapshots = snapshotMenuBytes(listMenuFiles(menusFolder));
+        if (snapshots.isEmpty()) {
+            backupInFlight.set(false);
+            IOException failure = new IOException("No menu files were found.");
+            Bukkit.getScheduler().runTask(plugin, () -> onComplete.accept(null, failure));
+            return true;
+        }
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"));
+        File backupFile = new File(new File(plugin.getDataFolder(), "backups"), "gfmenu-menus-" + timestamp + ".zip");
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            IOException failure = null;
+            try {
+                Files.createDirectories(backupFile.toPath().getParent());
+                try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(backupFile.toPath()))) {
+                    for (Map.Entry<File, byte[]> entry : snapshots.entrySet()) {
+                        output.putNextEntry(new ZipEntry(entry.getKey().getName()));
+                        output.write(entry.getValue());
+                        output.closeEntry();
+                    }
+                }
+            } catch (IOException exception) {
+                failure = exception;
+            }
+            backupInFlight.set(false);
+            IOException result = failure;
+            if (plugin.isEnabled()) {
+                Bukkit.getScheduler().runTask(plugin, () -> onComplete.accept(result == null ? backupFile : null, result));
+            }
+        });
+        return true;
+    }
+
+    public List<String> validateMenu(String menuName) {
+        File file = getMenuFile(menuName);
+        LayoutMenuData menu = getMenu(menuName);
+        if (file == null || menu == null) {
+            return List.of("ERROR: menu is not loaded");
+        }
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        List<String> issues = new ArrayList<>();
+        if (config.getKeys(false).isEmpty()) {
+            return List.of("ERROR: configuration is empty or invalid YAML");
+        }
+        if (menuFormats.get(normalizeName(menuName)) == MenuFormat.TRMENU) {
+            String layoutPath = config.contains("layout") ? "layout" : "Layout";
+            List<String> layout = config.getStringList(layoutPath);
+            if (layout.size() > 6) {
+                issues.add("WARNING: layout has more than 6 rows; extra rows are ignored");
+            }
+            Map<Character, List<Integer>> positions = TrMenuLayoutParser.parseLayoutPositions(layout,
+                    config.getBoolean("Settings.center", globalCenterEnabled));
+            Set<Character> configuredIcons = new LinkedHashSet<>();
+            org.bukkit.configuration.ConfigurationSection icons = config.getConfigurationSection("Icons");
+            if (icons != null) {
+                for (String key : icons.getKeys(false)) {
+                    if (key.length() != 1) {
+                        issues.add("ERROR: Icons." + key + " must use a one-character layout key");
+                        continue;
+                    }
+                    char icon = key.charAt(0);
+                    configuredIcons.add(icon);
+                    org.bukkit.configuration.ConfigurationSection iconConfig = icons.getConfigurationSection(key);
+                    if (iconConfig == null) {
+                        issues.add("ERROR: Icons." + key + " must be a configuration section");
+                        continue;
+                    }
+                    if (menu.getPositionsForIcon(icon).isEmpty()) {
+                        issues.add("WARNING: Icons." + key + " is not used in layout and has no slots");
+                    }
+                    org.bukkit.configuration.ConfigurationSection display = iconConfig.getConfigurationSection("display");
+                    String material = display == null
+                            ? iconConfig.getString("material", "STONE")
+                            : display.getString("material", "STONE");
+                    if (org.bukkit.Material.matchMaterial(material) == null) {
+                        issues.add("ERROR: Icons." + key + " has unknown material " + material);
+                    }
+                }
+            }
+            for (char icon : positions.keySet()) {
+                if (!configuredIcons.contains(icon)) {
+                    issues.add("WARNING: layout uses " + icon + " but Icons." + icon + " is missing");
+                }
+            }
+        } else if (menuFormats.get(normalizeName(menuName)) == MenuFormat.DELUXE) {
+            Set<Integer> occupiedSlots = new LinkedHashSet<>();
+            org.bukkit.configuration.ConfigurationSection nestedItems = config.getConfigurationSection("items");
+            if (nestedItems != null) {
+                validateDeluxeItems(nestedItems, "items.", menu.getInventorySize(), occupiedSlots, issues);
+            }
+            validateDeluxeItems(config, "", menu.getInventorySize(), occupiedSlots, issues);
+        }
+        return List.copyOf(issues);
+    }
+
+    private static void validateDeluxeItems(org.bukkit.configuration.ConfigurationSection root, String prefix,
+                                            int inventorySize, Set<Integer> occupiedSlots, List<String> issues) {
+        for (String key : root.getKeys(false)) {
+            org.bukkit.configuration.ConfigurationSection item = root.getConfigurationSection(key);
+            if (item == null || !item.contains("slot")) {
+                continue;
+            }
+            String path = prefix + key;
+            int slot = item.getInt("slot", -1);
+            if (slot < 0 || slot >= inventorySize) {
+                issues.add("ERROR: " + path + ".slot is outside the menu inventory");
+            } else if (!occupiedSlots.add(slot)) {
+                issues.add("WARNING: multiple items use slot " + slot);
+            }
+            String material = item.getString("material", "STONE");
+            org.bukkit.Material parsedMaterial = org.bukkit.Material.matchMaterial(material);
+            if (parsedMaterial == null || parsedMaterial.isAir()) {
+                issues.add("ERROR: " + path + " has unknown material " + material);
+            }
+        }
     }
 
     /** Registers a callback invoked on the main thread just before reloaded menu data replaces the old data. */

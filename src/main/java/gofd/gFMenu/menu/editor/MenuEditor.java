@@ -317,7 +317,10 @@ public final class MenuEditor implements Listener {
         return mutateItem(menuName, slot, false, (config, item, path, format) -> {
             config.set(path, null);
             if (format == MenuFormat.TRMENU) {
-                clearTrMenuLayoutSlot(config, slot);
+                LayoutMenuData menu = menuManager.getMenu(menuName);
+                for (int itemSlot : menu.getPositionsForIcon(item.getIconChar())) {
+                    clearTrMenuLayoutSlot(config, itemSlot);
+                }
             }
         }, message("editor.item_removed"));
     }
@@ -373,7 +376,7 @@ public final class MenuEditor implements Listener {
                 default -> throw new IllegalArgumentException(message("editor.error.action_operation"));
             }
             item.setActions(normalizedType, actions);
-            writeItem(config, path, item, format);
+            writeItem(config, path, item, format, Set.of(normalizedType));
         }, message("editor.actions_saved"));
     }
 
@@ -390,8 +393,10 @@ public final class MenuEditor implements Listener {
         Inventory inventory = Bukkit.createInventory(holder, menu.getInventorySize(), message("editor.title", menu.getName()));
         holder.setInventory(inventory);
         for (LayoutMenuItem item : menu.getItems().values()) {
-            if (item.getSlot() >= 0 && item.getSlot() < inventory.getSize()) {
-                inventory.setItem(item.getSlot(), item.toItemStack());
+            for (int slot : menu.getPositionsForIcon(item.getIconChar())) {
+                if (slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, item.toItemStack());
+                }
             }
         }
         openInventory(player, inventory);
@@ -435,6 +440,14 @@ public final class MenuEditor implements Listener {
                 message("editor.panel.right"), message("editor.panel.right_lore")));
         inventory.setItem(BookField.ALL.panelSlot(), panelItem(Material.WRITABLE_BOOK,
                 message("editor.panel.all"), message("editor.panel.all_lore")));
+        inventory.setItem(BookField.SHIFT_LEFT.panelSlot(), panelItem(Material.WRITABLE_BOOK,
+                message("editor.panel.shift_left"), message("editor.panel.shift_left_lore")));
+        inventory.setItem(BookField.SHIFT_RIGHT.panelSlot(), panelItem(Material.WRITABLE_BOOK,
+                message("editor.panel.shift_right"), message("editor.panel.shift_right_lore")));
+        inventory.setItem(BookField.MIDDLE.panelSlot(), panelItem(Material.WRITABLE_BOOK,
+                message("editor.panel.middle"), message("editor.panel.middle_lore")));
+        inventory.setItem(BookField.DROP.panelSlot(), panelItem(Material.WRITABLE_BOOK,
+                message("editor.panel.drop"), message("editor.panel.drop_lore")));
         inventory.setItem(BookField.SAVE_SLOT, panelItem(Material.EMERALD_BLOCK,
                 message("editor.panel.save"), message("editor.panel.save_lore")));
         openInventory(player, inventory);
@@ -572,7 +585,7 @@ public final class MenuEditor implements Listener {
         String content = switch (field) {
             case NAME -> fields.name;
             case LORE -> String.join("\n", fields.lore);
-            case LEFT, RIGHT, ALL -> String.join("\n", fields.actions
+            case LEFT, RIGHT, ALL, SHIFT_LEFT, SHIFT_RIGHT, MIDDLE, DROP -> String.join("\n", fields.actions
                     .getOrDefault(field.actionType(), List.of()).stream()
                     .map(this::toEditableAction).toList());
         };
@@ -580,6 +593,7 @@ public final class MenuEditor implements Listener {
     }
 
     private String toEditableAction(String action) {
+        action = ActionEngine.normalizeActionAliases(action);
         String lower = action.toLowerCase(Locale.ROOT);
         if (lower.startsWith("command:")) {
             return "/" + action.substring(8).trim();
@@ -601,8 +615,11 @@ public final class MenuEditor implements Listener {
                 session.fields().lore.clear();
                 session.fields().lore.addAll(lines);
             }
-            case LEFT, RIGHT, ALL -> session.fields().actions.put(field.actionType(), lines.stream()
-                    .map(MenuEditor::normalizeBookAction).toList());
+            case LEFT, RIGHT, ALL, SHIFT_LEFT, SHIFT_RIGHT, MIDDLE, DROP -> {
+                session.fields().actions.put(field.actionType(), lines.stream()
+                        .map(MenuEditor::normalizeBookAction).toList());
+                session.fields().editedActionTypes.add(field.actionType());
+            }
         }
     }
 
@@ -640,7 +657,7 @@ public final class MenuEditor implements Listener {
             item.setGlowing(fields.glowing);
             item.setSkullOwner(fields.skullOwner);
             fields.actions.forEach(item::setActions);
-            writeItem(config, path, item, format);
+            writeItem(config, path, item, format, fields.editedActionTypes);
         }, message("editor.slot_saved", session.slot()));
     }
 
@@ -696,7 +713,7 @@ public final class MenuEditor implements Listener {
         return mutate(menuName, config -> {
             MenuFormat format = menuManager.getMenuFormat(menuName);
             if (format == MenuFormat.TRMENU) {
-                config.set("layout", materializeTrMenuLayout(menu, slot));
+                config.set(trMenuLayoutPath(config), materializeTrMenuLayout(menu, slot));
             }
             LayoutMenuItem item = menu.getItemAtSlot(slot);
             String path;
@@ -749,6 +766,11 @@ public final class MenuEditor implements Listener {
     }
 
     private void writeItem(YamlConfiguration config, String path, LayoutMenuItem item, MenuFormat format) {
+        writeItem(config, path, item, format, Set.of());
+    }
+
+    private void writeItem(YamlConfiguration config, String path, LayoutMenuItem item, MenuFormat format,
+                           Set<String> editedActionTypes) {
         String material = item.getMaterial();
         int amount = item.getAmount();
         String name = toConfigText(item.getName());
@@ -771,8 +793,68 @@ public final class MenuEditor implements Listener {
         config.set(display + ".lore", lore);
         config.set(display + ".glow", item.isGlowing());
         config.set(display + ".skull_owner", item.getSkullOwner());
-        config.set(path + ".actions", null);
-        item.getActions().forEach((type, actions) -> config.set(path + ".actions." + type, actions));
+        writeTrMenuActions(config, path, item, editedActionTypes);
+    }
+
+    private void writeTrMenuActions(YamlConfiguration config, String path, LayoutMenuItem item,
+                                    Set<String> editedActionTypes) {
+        if (editedActionTypes.isEmpty()) {
+            return;
+        }
+        String actionsPath = path + ".actions";
+        if (!config.isConfigurationSection(actionsPath)) {
+            config.set(actionsPath, null);
+            item.getActions().forEach((type, actions) ->
+                    config.set(actionsPath + "." + type, serializeTrMenuActions(actions)));
+            return;
+        }
+        for (String type : editedActionTypes) {
+            List<String> actions = item.getActions().get(type);
+            config.set(actionsPath + "." + type,
+                    actions == null || actions.isEmpty() ? null : serializeTrMenuActions(actions));
+        }
+    }
+
+    private List<Object> serializeTrMenuActions(List<String> actions) {
+        List<Object> serialized = new ArrayList<>();
+        for (String action : actions) {
+            if (!action.regionMatches(true, 0, "catcher:", 0, 8)) {
+                serialized.add(action);
+                continue;
+            }
+            String[] parts = action.substring(8).split("\\|", -1);
+            if (parts.length == 0 || parts[0].isBlank()) {
+                serialized.add(action);
+                continue;
+            }
+            Map<String, Object> definition = new HashMap<>();
+            for (int index = 1; index < parts.length; index++) {
+                String part = parts[index].trim();
+                int separator = part.indexOf('=');
+                if (separator <= 0) {
+                    continue;
+                }
+                String type = part.substring(0, separator).trim().toLowerCase(Locale.ROOT);
+                if (type.equals("type")) {
+                    definition.put(type, part.substring(separator + 1).trim());
+                    continue;
+                }
+                if (!Set.of("start", "cancel", "end").contains(type)) {
+                    continue;
+                }
+                Object existing = definition.get(type);
+                List<String> values = existing instanceof List<?> list
+                        ? new ArrayList<>(list.stream().map(String::valueOf).toList()) : new ArrayList<>();
+                values.add(part.substring(separator + 1).trim());
+                definition.put(type, values);
+            }
+            Map<String, Object> catcher = new HashMap<>();
+            catcher.put(parts[0].trim(), definition);
+            Map<String, Object> wrapper = new HashMap<>();
+            wrapper.put("catcher", catcher);
+            serialized.add(wrapper);
+        }
+        return serialized;
     }
 
     private void writeDeluxeActions(YamlConfiguration config, String path, LayoutMenuItem item) {
@@ -823,7 +905,8 @@ public final class MenuEditor implements Listener {
     private static void setTrMenuLayoutSlot(YamlConfiguration config, int slot, char icon) {
         int rowIndex = slot / 9;
         int column = slot % 9;
-        List<String> layout = new ArrayList<>(config.getStringList("layout"));
+        String layoutPath = trMenuLayoutPath(config);
+        List<String> layout = new ArrayList<>(config.getStringList(layoutPath));
         while (layout.size() <= rowIndex) {
             layout.add("         ");
         }
@@ -837,7 +920,14 @@ public final class MenuEditor implements Listener {
         }
         normalized.setCharAt(column, icon);
         layout.set(rowIndex, normalized.toString());
-        config.set("layout", layout);
+        config.set(layoutPath, layout);
+    }
+
+    private static String trMenuLayoutPath(YamlConfiguration config) {
+        if (config.contains("layout")) {
+            return "layout";
+        }
+        return config.contains("Layout") ? "Layout" : "layout";
     }
 
     private static List<String> materializeTrMenuLayout(LayoutMenuData menu, int minimumSlot) {
@@ -846,16 +936,17 @@ public final class MenuEditor implements Listener {
         for (int row = 0; row < rowCount; row++) {
             rows.add(new StringBuilder("         "));
         }
-        menu.getLayoutSlots().forEach((icon, slot) -> {
+        menu.getLayoutPositions().forEach((icon, slots) -> slots.forEach(slot -> {
             if (slot >= 0 && slot < rowCount * 9) {
                 rows.get(slot / 9).setCharAt(slot % 9, icon);
             }
-        });
+        }));
         return rows.stream().map(StringBuilder::toString).toList();
     }
 
     private static void clearTrMenuLayoutSlot(YamlConfiguration config, int slot) {
-        List<String> layout = new ArrayList<>(config.getStringList("layout"));
+        String layoutPath = trMenuLayoutPath(config);
+        List<String> layout = new ArrayList<>(config.getStringList(layoutPath));
         int rowIndex = slot / 9;
         int column = slot % 9;
         if (rowIndex >= layout.size()) {
@@ -870,7 +961,7 @@ public final class MenuEditor implements Listener {
         }
         row.setCharAt(column, ' ');
         layout.set(rowIndex, row.toString());
-        config.set("layout", layout);
+        config.set(layoutPath, layout);
     }
 
     private static boolean isAir(ItemStack stack) {
@@ -893,13 +984,14 @@ public final class MenuEditor implements Listener {
         if (type == null) {
             return null;
         }
-        String normalized = type.toLowerCase(Locale.ROOT);
-        return switch (normalized) {
+        String normalized = type.toLowerCase(Locale.ROOT).replace('-', '_');
+        String alias = switch (normalized) {
             case "left", "\u5de6\u952e" -> "left";
             case "right", "\u53f3\u952e" -> "right";
             case "all", "\u5168\u90e8", "\u901a\u7528" -> "all";
-            default -> null;
+            default -> normalized;
         };
+        return alias.matches("[a-z][a-z0-9_-]{0,31}") ? alias : null;
     }
 
     private static String toConfigText(String value) {
@@ -954,7 +1046,11 @@ public final class MenuEditor implements Listener {
         LORE(11, null, "editor.book.lore_title"),
         LEFT(12, "left", "editor.book.left_title"),
         RIGHT(13, "right", "editor.book.right_title"),
-        ALL(14, "all", "editor.book.all_title");
+        ALL(14, "all", "editor.book.all_title"),
+        SHIFT_LEFT(15, "shift_left", "editor.book.shift_left_title"),
+        SHIFT_RIGHT(16, "shift_right", "editor.book.shift_right_title"),
+        MIDDLE(17, "middle", "editor.book.middle_title"),
+        DROP(18, "drop", "editor.book.drop_title");
 
         private static final int SAVE_SLOT = 22;
 
@@ -996,6 +1092,7 @@ public final class MenuEditor implements Listener {
         private String name = "";
         private final List<String> lore = new ArrayList<>();
         private final Map<String, List<String>> actions = new HashMap<>();
+        private final Set<String> editedActionTypes = new HashSet<>();
         private boolean glowing;
         private String skullOwner;
 

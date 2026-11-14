@@ -42,6 +42,10 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
             case "debug" -> debug(sender);
             case "config" -> config(sender, args);
             case "lang" -> language(sender, args);
+            case "checkin" -> checkin(sender, args);
+            case "update" -> update(sender, args);
+            case "backup" -> backup(sender, args);
+            case "validate" -> validate(sender, args);
             case "edit" -> edit(sender, args);
             default -> {
                 if (sender instanceof Player player) {
@@ -109,6 +113,97 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
             player.closeInventory();
         } else {
             sendKey(sender, "player_only");
+        }
+    }
+
+    private void checkin(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sendKey(sender, "player_only");
+            return;
+        }
+        if (!player.hasPermission("gfmenu.checkin")) {
+            sendKey(sender, "command.checkin_no_permission");
+            return;
+        }
+        if (args.length == 1 || (args.length == 2 && args[1].equalsIgnoreCase("claim"))) {
+            plugin.getCheckinManager().checkIn(player);
+            return;
+        }
+        if (args.length == 2 && args[1].equalsIgnoreCase("status")) {
+            var manager = plugin.getCheckinManager();
+            var playerId = player.getUniqueId();
+            sendKey(sender, "command.checkin_status_header");
+            sendKey(sender, manager.canCheckIn(playerId)
+                    ? "command.checkin_status_available" : "command.checkin_status_claimed");
+            var lastCheckin = manager.getLastCheckin(playerId);
+            sendKey(sender, "command.checkin_status_stats", manager.getStreak(playerId),
+                    manager.getTotal(playerId), lastCheckin == null ? "-" : lastCheckin);
+            return;
+        }
+        sendKey(sender, "command.checkin_usage");
+    }
+
+    private void update(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) {
+            return;
+        }
+        if (args.length != 1) {
+            sendKey(sender, "command.update_usage");
+            return;
+        }
+        plugin.checkForUpdates(sender);
+    }
+
+    private void backup(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) {
+            return;
+        }
+        if (args.length != 1) {
+            sendKey(sender, "command.backup_usage");
+            return;
+        }
+        boolean scheduled = menuManager.createMenuBackup((file, error) -> {
+            if (error != null) {
+                sendKey(sender, "command.backup_failed", error.getMessage());
+            } else {
+                sendKey(sender, "command.backup_complete", file.getName());
+            }
+        });
+        sendKey(sender, scheduled ? "command.backup_started" : "command.backup_busy");
+    }
+
+    private void validate(CommandSender sender, String[] args) {
+        if (!requireAdmin(sender)) {
+            return;
+        }
+        if (args.length > 2) {
+            sendKey(sender, "command.validate_usage");
+            return;
+        }
+        List<String> menuNames;
+        if (args.length == 2) {
+            if (menuManager.getMenu(args[1]) == null) {
+                sendKey(sender, "menu_not_found");
+                return;
+            }
+            menuNames = List.of(menuManager.getMenu(args[1]).getName());
+        } else {
+            menuNames = new ArrayList<>(menuManager.getAllMenuData().keySet());
+        }
+        if (menuNames.isEmpty()) {
+            sendKey(sender, "command.no_menus");
+            return;
+        }
+        for (String menuName : menuNames) {
+            List<String> issues = menuManager.validateMenu(menuName);
+            if (issues.isEmpty()) {
+                sendKey(sender, "command.validate_ok", menuName);
+                continue;
+            }
+            sendKey(sender, "command.validate_header", menuName, issues.size());
+            for (String issue : issues) {
+                sendKey(sender, "command.validate_issue", issue);
+            }
         }
     }
 
@@ -313,6 +408,10 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
         sendKey(sender, "command.help_edit");
         sendKey(sender, "command.help_info");
         sendKey(sender, "command.help_language");
+        sendKey(sender, "command.help_checkin");
+        sendKey(sender, "command.help_update");
+        sendKey(sender, "command.help_backup");
+        sendKey(sender, "command.help_validate");
     }
 
     private void sendEditHelp(CommandSender sender) {
@@ -383,13 +482,18 @@ public final class MenuCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(args[0], List.of("open", "close", "info", "list", "reload", "debug", "config", "lang", "edit"));
+            return filter(args[0], List.of("open", "close", "info", "list", "reload", "debug",
+                    "config", "lang", "checkin", "update", "backup", "validate", "edit"));
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("checkin")) {
+            return filter(args[1], List.of("claim", "status"));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("lang")) {
             return filter(args[1], List.of("zh_CN", "en_US"));
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("open")
-                || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info"))) {
+                || args[0].equalsIgnoreCase("edit") || args[0].equalsIgnoreCase("info")
+                || args[0].equalsIgnoreCase("validate"))) {
             return filter(args[1], new ArrayList<>(menuManager.getAllMenuData().keySet()));
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
