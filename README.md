@@ -39,7 +39,7 @@ Kether scripts, JavaScript-driven or otherwise dynamic slots, and conditional ic
 | `/gfmenu info <menu>` | Show menu format, size, item count, and permission. |
 | `/gfmenu open <menu> <player>` | Open a menu for an online player. |
 | `/gfmenu close` | Close your current menu. |
-| `/gfmenu lang [zh_CN|en_US]` | View or change the server-wide message language. |
+| `/gfmenu lang [zh_CN/en_US]` | View or change the server-wide message language. |
 | `/gfmenu checkin [status]` | Claim today's reward or view check-in status. |
 | `/gfmenu update` | Check for a release from the main GitHub repository. |
 | `/gfmenu backup` | Create a timestamped ZIP backup of menu YAML files. |
